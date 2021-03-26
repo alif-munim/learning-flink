@@ -114,7 +114,7 @@ public class BasicStreamingOperations {
 
 
         } catch(Exception e) {
-
+            e.printStackTrace();
         }
     }
 }

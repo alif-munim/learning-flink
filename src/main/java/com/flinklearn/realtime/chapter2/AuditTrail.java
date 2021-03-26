@@ -24,9 +24,9 @@ public class AuditTrail {
         this.user = attributes[1];
         this.entity = attributes[2];
         this.operation = attributes[3];
-        this.timestamp = Long.valueOf(attributes[4]);
-        this.duration = Integer.valueOf(attributes[5]);
-        this.count = Integer.valueOf(attributes[6]);
+        this.duration = Integer.valueOf(attributes[4]);
+        this.count = Integer.valueOf(attributes[5]);
+        this.timestamp = Long.valueOf(attributes[6]);
     }
 
     public int getId() {
