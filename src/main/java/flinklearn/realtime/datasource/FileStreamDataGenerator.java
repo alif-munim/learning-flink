@@ -17,6 +17,8 @@ import java.util.Random;
 * [] java.io.File vs. java.io.FileWriter
 * */
 
+
+
 public class FileStreamDataGenerator {
 
     // ANSI escape codes for color
@@ -39,15 +41,70 @@ public class FileStreamDataGenerator {
             appUser.add("Ron");
             appUser.add("Hermione");
 
+            // Define a list of operations
+            List<String> appOperation = new ArrayList();
+            appOperation.add("Create");
+            appOperation.add("Modify");
+            appOperation.add("Query");
+            appOperation.add("Delete");
+
+            // Define a list of app entities
+            List<String> appEntity = new ArrayList();
+            appEntity.add("Customer");
+            appEntity.add("SalesRep");
+
             //Define a random number generator
             Random random = new Random();
 
-            for(int i=0; i < 10; i++) {
+            // Define data output directory
+            String dataDir = "data/raw_audit_trail";
+
+            // Create 100 random records
+            for(int i=0; i < 100; i++) {
 
                 // Pick random values
                 String user = appUser.get(random.nextInt(appUser.size()));
+                String operation = appOperation.get(random.nextInt(appOperation.size()));
+                String entity = appEntity.get(random.nextInt(appEntity.size()));
+                String duration = String.valueOf(random.nextInt(10) + 1);
+                String changeCount = String.valueOf(random.nextInt(4) + 1);
 
-                System.out.println(user);
+                // Get current time
+                String currentTime = String.valueOf(System.currentTimeMillis());
+
+                // Create CSV array
+                String[] csv = {
+                        String.valueOf(i),
+                        user,
+                        entity,
+                        operation,
+                        duration,
+                        changeCount,
+                        currentTime
+                };
+
+                // Open a new file for this record
+                FileWriter auditFileWriter = new FileWriter(
+                        dataDir + "/audit_trail_" + i + ".csv"
+                );
+
+                // Write csv to file
+                CSVWriter auditCSVWriter = new CSVWriter(auditFileWriter);
+                auditCSVWriter.writeNext(csv);
+
+                // Log output
+                System.out.println(
+                        ANSI_BLUE + "FileStream Generator : Creating File : " +
+                        Arrays.toString(csv) + ANSI_RESET
+                );
+
+                // Close and flush writer
+                auditCSVWriter.flush();
+                auditCSVWriter.close();
+
+                // Sleep before next record
+                Thread.sleep(1000);
+
             }
 
 
