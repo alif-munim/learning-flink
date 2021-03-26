@@ -101,7 +101,7 @@ public class BasicStreamingOperations {
             recCount.addSink(countSink);
 
             /**************************************************************
-             *          Perform computations and write to output sink.
+             *          Start file stream generator and execute env
              **************************************************************/
 
             // Start file stream generator on separate thread
