@@ -1,7 +1,9 @@
 package com.flinklearn.realtime.datasource;
 
 import com.opencsv.CSVWriter;
+import org.apache.commons.io.FileUtils;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,7 +19,7 @@ import java.util.Random;
 
 
 
-public class FileStreamDataGenerator {
+public class FileStreamDataGenerator implements Runnable {
 
     // ANSI escape codes for color
     public static final String ANSI_RESET = "\u001B[0m";
@@ -56,6 +58,9 @@ public class FileStreamDataGenerator {
 
             // Define data output directory
             String dataDir = "data/raw_audit_trail";
+
+            //Clean out existing files in the directory
+            FileUtils.cleanDirectory(new File(dataDir));
 
             // Create 100 random records
             for(int i=0; i < 100; i++) {
