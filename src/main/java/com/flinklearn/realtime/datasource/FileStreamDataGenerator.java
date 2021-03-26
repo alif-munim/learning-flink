@@ -1,9 +1,7 @@
-package flinklearn.realtime.datasource;
+package com.flinklearn.realtime.datasource;
 
 import com.opencsv.CSVWriter;
-import org.apache.commons.io.FileUtils;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
