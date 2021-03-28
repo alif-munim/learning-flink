@@ -7,6 +7,7 @@ import com.flinklearn.realtime.datasource.KafkaStreamDataGenerator;
 import com.flinklearn.realtime.datastreamapi.AuditTrail;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 
@@ -62,7 +63,7 @@ public class WindowingOperations {
             });
 
             /*******************************************************************
-             * Use sliding windows
+             * Create summary reports with sliding windows
              *******************************************************************/
             // Sliding window interval of 10 seconds, sliding by 5 seconds
             DataStream<Tuple4<String, Integer, Long, Long>> slidingSummary =
@@ -103,6 +104,52 @@ public class WindowingOperations {
                             + " Start Time : " + minTime
                             + " End Time : " + maxTime
                             + " Count : " + slidingSummary.f1
+                    );
+                    return null;
+                }
+            });
+
+            /*******************************************************************
+             * Create summary reports with session windows
+             *******************************************************************/
+            // Use session windows - partition by user and window gap of 5 secs
+            DataStream<Tuple4<String, Integer, Long, Long>> sessionSummary =
+                    auditObj.map(i -> new Tuple4<String, Integer, Long, Long>(
+                            i.getUser(),
+                            1,
+                            i.getTimestamp(),
+                            i.getTimestamp()
+                    ))
+                    .returns(Types.TUPLE(
+                            Types.STRING,
+                            Types.INT,
+                            Types.LONG,
+                            Types.LONG
+                    ))
+                    .keyBy(0)
+                    .window(ProcessingTimeSessionWindows
+                        .withGap(Time.seconds(5)))
+                    .reduce((x, y) -> new Tuple4<String, Integer, Long, Long>(
+                            x.f0,
+                            x.f1 + y.f1,
+                            Math.min(x.f2, y.f2),
+                            Math.max(x.f3, y.f3)
+                    ));
+
+            // Pretty print session window summaries
+            sessionSummary.map(new MapFunction<Tuple4<String, Integer, Long, Long>, Object>() {
+
+                @Override
+                public Object map(Tuple4<String, Integer, Long, Long> sessionSummary) throws Exception {
+                    SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+                    String minTime = format.format(new Date(Long.valueOf(sessionSummary.f2)));
+                    String maxTime = format.format(new Date(Long.valueOf(sessionSummary.f3)));
+                    System.out.println(
+                            "Session Summary : "
+                            + " User : " + sessionSummary.f0
+                            + " Start Time : " + minTime
+                            + " End Time : " + maxTime
+                            + " Count : " + sessionSummary.f1
                     );
                     return null;
                 }
