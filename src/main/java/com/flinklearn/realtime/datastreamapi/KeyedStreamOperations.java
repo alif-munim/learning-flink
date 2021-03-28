@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.chapter2;
+package com.flinklearn.realtime.datastreamapi;
 
 import com.flinklearn.realtime.common.Utils;
 import com.flinklearn.realtime.datasource.FileStreamDataGenerator;
@@ -9,8 +9,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.api.java.tuple.Tuple2;
-
-import java.io.File;
 
 public class KeyedStreamOperations {
 

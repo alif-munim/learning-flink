@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.chapter2;
+package com.flinklearn.realtime.datastreamapi;
 
 import com.flinklearn.realtime.common.MapCountPrinter;
 import com.flinklearn.realtime.common.Utils;
@@ -15,7 +15,6 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
-import java.lang.reflect.Type;
 import java.io.File;
 import org.apache.flink.core.fs.Path;
 

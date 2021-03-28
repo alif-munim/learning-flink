@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.chapter2;
+package com.flinklearn.realtime.datastreamapi;
 
 public class AuditTrail {
 
