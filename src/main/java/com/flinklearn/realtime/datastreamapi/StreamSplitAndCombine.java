@@ -112,7 +112,7 @@ public class StreamSplitAndCombine {
                     });
 
             /********************************************************************
-             * Configure data source and execute
+             * Print merged records
              *******************************************************************/
             processedTrail.map(new MapFunction<Tuple3<String, String, Integer>, Tuple3<String, String, Integer>>() {
                 @Override
