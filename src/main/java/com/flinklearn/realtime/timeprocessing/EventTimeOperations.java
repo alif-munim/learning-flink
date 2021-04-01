@@ -1,5 +1,7 @@
 package com.flinklearn.realtime.timeprocessing;
 
+import com.flinklearn.realtime.common.Utils;
+import com.flinklearn.realtime.datasource.FileStreamDataGenerator;
 import com.flinklearn.realtime.datastreamapi.AuditTrail;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -14,14 +16,20 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.flink.util.OutputTag;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
 import javax.annotation.Nullable;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Properties;
 
 public class EventTimeOperations {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
         /*******************************************************************
          * Set up stream execution environment
@@ -96,7 +104,7 @@ public class EventTimeOperations {
 
         // Create output tag for late records
         final OutputTag<Tuple2<String, Integer>> lateAuditTrail =
-                new OutputTag<Tuple2<String, Integer>>("late-audit-trail");
+                new OutputTag<Tuple2<String, Integer>>("late-audit-trail"){};
 
         // Use single output stream operator to produce side output
         SingleOutputStreamOperator<Tuple2<String, Integer>> finalTrail =
@@ -132,6 +140,49 @@ public class EventTimeOperations {
         // Collect late events for later processing
         DataStream<Tuple2<String, Integer>> lateEvents =
                 finalTrail.getSideOutput(lateAuditTrail);
+
+        /*******************************************************************
+         * Process watermarked stream
+         *******************************************************************/
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+
+        // Standard flink kafka producer implementation
+        FlinkKafkaProducer<String> kafkaProducer = new FlinkKafkaProducer<String>(
+          "flink.kafka.streaming.sink",
+                (new KafkaSerializationSchema<String>() {
+                    @Override
+                    public ProducerRecord<byte[], byte[]> serialize(String s, @Nullable Long aLong) {
+                        return (new ProducerRecord<byte[], byte[]>(
+                                "flink.kafka.streaming.sink",
+                                s.getBytes()
+                        ));
+                    }
+                }),
+                properties,
+                FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+        );
+
+        finalTrail.map(
+                new MapFunction<Tuple2<String, Integer>, String>() {
+                    @Override
+                    public String map(Tuple2<String, Integer> finalTrail) throws Exception {
+                        return finalTrail.f0 + " = " + finalTrail.f1;
+                    }
+                }
+        )
+        .addSink(kafkaProducer);
+
+        /*******************************************************************
+         * Set up data source and execute pipeline
+         *******************************************************************/
+        Utils.printHeader("Starting file data generator");
+        Thread fileThread = new Thread(new FileStreamDataGenerator());
+        fileThread.start();
+
+        streamEnv.execute("Flink watermarked stream example");
+
+
     }
 
 }
