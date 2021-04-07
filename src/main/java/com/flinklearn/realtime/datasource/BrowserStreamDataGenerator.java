@@ -92,7 +92,7 @@ public class BrowserStreamDataGenerator implements Runnable {
                 System.out.println(ANSI_PURPLE + "Browser: Sending Event : "
                         + String.join(", ", browserEvent)  + ANSI_RESET);
 
-                Thread.sleep(1000);
+                Thread.sleep(500);
 
             }
 

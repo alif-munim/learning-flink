@@ -120,7 +120,8 @@ public class SummaryDuration {
                             1
                     ))
                     .returns(Types.TUPLE(Types.STRING, Types.STRING, Types.LONG, Types.INT))
-                    .timeWindowAll(Time.seconds(1))
+                    .keyBy(0)
+                    .timeWindow(Time.seconds(10))
                     .sideOutputLateData(lateBrowserTrail)
                     .reduce((x, y) ->
                         new Tuple4<String, String, Long, Integer>(
@@ -148,6 +149,8 @@ public class SummaryDuration {
                             return minuteSummary;
                         }
                     });
+
+//            browserEventProcessed.print();
 
             DataStream<Tuple4<String, String, Long, Integer>> lateEvents =
                     browserEventProcessed.getSideOutput(lateBrowserTrail);
