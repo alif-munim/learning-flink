@@ -7,8 +7,11 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 
+import javax.annotation.Nullable;
 import java.util.Properties;
 
 /****************************************************************************
@@ -62,6 +65,37 @@ public class SummaryDuration {
             /****************************************************************************
              * Output 10-second summaries using event time operations
              ****************************************************************************/
+            // Create event time watermarked stream
+            DataStream<BrowserEvent> browserEventWatermarked = browserEventObject
+                    .assignTimestampsAndWatermarks(
+                            new AssignerWithPunctuatedWatermarks<BrowserEvent>() {
+
+                                transient long currentWatermark = 0L;
+                                int delay = 10000;
+                                int buffer = 2000;
+
+                                @Nullable
+                                @Override
+                                public Watermark checkAndGetNextWatermark(BrowserEvent browserEvent, long nextMark) {
+
+                                    long currentTime = System.currentTimeMillis();
+
+                                    if(currentWatermark == 0L) {
+                                        currentWatermark = currentTime;
+                                    } else if(currentTime - currentWatermark > delay) {
+                                        currentWatermark = currentTime;
+                                    }
+
+                                    return new Watermark(currentWatermark - buffer);
+
+                                }
+
+                                @Override
+                                public long extractTimestamp(BrowserEvent browserEvent, long prevMark) {
+                                    return browserEvent.getTimestamp();
+                                }
+                            }
+                    );
 
             /****************************************************************************
              * Perform stateful operations to print event durations
