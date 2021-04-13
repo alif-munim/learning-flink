@@ -1,11 +1,14 @@
+package com.flinklearn.realtime.kafkaelastic;
+
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
-import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch2.RequestIndexer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
+import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
@@ -14,9 +17,13 @@ import java.util.*;
 
 
 /**
- * @author Keira Zhou
- * @date 05/10/2016
+ * A flink pipeline with a kafka source and elasticsearch sink
+ * Original code by Keira Zhou on 05/10/2016
+ * See the original source code at the link below
+ * https://github.com/keiraqz/KafkaFlinkElastic/blob/master/src/main/java/viper/KafkaFlinkElastic.java
+ * Revised for elasticsearch 7 by Alif Munim on 04/13/2020
  */
+
 public class KafkaFlinkElastic {
 
     public static void main(String[] args) throws Exception {
@@ -25,7 +32,7 @@ public class KafkaFlinkElastic {
         stream.print();
         writeToElastic(stream);
         // execute program
-        env.execute("Viper Flink!");
+        env.execute("Kafka to Elasticsearch!");
     }
 
     public static DataStream<String> readFromKafka(StreamExecutionEnvironment env) {
@@ -36,7 +43,7 @@ public class KafkaFlinkElastic {
         properties.setProperty("group.id", "test");
 
         DataStream<String> stream = env.addSource(
-                new FlinkKafkaConsumer09<>("test", new SimpleStringSchema(), properties));
+                new FlinkKafkaConsumer<>("test", new SimpleStringSchema(), properties));
         return stream;
     }
 
@@ -53,6 +60,10 @@ public class KafkaFlinkElastic {
             List<InetSocketAddress> transports = new ArrayList<>();
             transports.add(new InetSocketAddress("127.0.0.1", 9300)); // port is 9300 not 9200 for ES TransportClient
 
+            List<HttpHost> httpHosts = new ArrayList<>();
+            httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+            httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
+
             ElasticsearchSinkFunction<String> indexLog = new ElasticsearchSinkFunction<String>() {
                 public IndexRequest createIndexRequest(String element) {
                     String[] logContent = element.trim().split("\t");
@@ -62,8 +73,7 @@ public class KafkaFlinkElastic {
 
                     return Requests
                             .indexRequest()
-                            .index("viper-test")
-                            .type("viper-log")
+                            .index("ip-test")
                             .source(esJson);
                 }
 
@@ -73,8 +83,9 @@ public class KafkaFlinkElastic {
                 }
             };
 
-            ElasticsearchSink esSink = new ElasticsearchSink(config, transports, indexLog);
-            input.addSink(esSink);
+            ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<String>(httpHosts, indexLog);
+            esSinkBuilder.setBulkFlushMaxActions(1);
+            input.addSink(esSinkBuilder.build());
         } catch (Exception e) {
             System.out.println(e);
         }
