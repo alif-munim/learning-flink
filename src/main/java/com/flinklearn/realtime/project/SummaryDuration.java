@@ -76,7 +76,7 @@ public class SummaryDuration {
                     new MapFunction<String, BrowserEvent>() {
                         @Override
                         public BrowserEvent map(String bStr) throws Exception {
-                            System.out.println("* Received new event: " + bStr);
+                            // System.out.println("* Received new event: " + bStr);
                             return new BrowserEvent(bStr);
                         }
                     }
@@ -87,11 +87,15 @@ public class SummaryDuration {
              ****************************************************************************/
 
             DataStream<Tuple3<String, String, Long>> browserEventDurations = browserEventObject
-                    .map(i -> new Tuple3<String, String, Long>(
-                            i.getUser(),
-                            i.getAction(),
-                            i.getTimestamp()
-                    ))
+                    .map(i -> {
+                        Tuple3<String, String, Long> browserTuple = new Tuple3<String, String, Long>(
+                                i.getUser(),
+                                i.getAction(),
+                                i.getTimestamp()
+                        );
+                        // System.out.println("Mapped action: " + browserTuple.f1);
+                        return browserTuple;
+                    })
                     .returns(Types.TUPLE(Types.STRING, Types.STRING, Types.LONG))
                     .keyBy(0)
                     .map(new RichMapFunction<Tuple3<String, String, Long>, Tuple3<String, String, Long>>() {
@@ -116,9 +120,14 @@ public class SummaryDuration {
 
                         @Override
                         public Tuple3<String, String, Long> map(Tuple3<String, String, Long> browserTuple) throws Exception {
-                            Tuple3<String, String, Long> browserEventDuration = browserTuple;
-                            //System.out.println(lastTimestamp.value());
+                            Tuple3<String, String, Long> browserEventDuration = new Tuple3<String, String, Long>(
+                                    browserTuple.f0,
+                                    browserTuple.f1,
+                                    browserTuple.f2
+                            );
+                            // System.out.println(browserTuple);
                             if (lastTimestamp.value() != null) {
+                                // Tuple3<String, String, Long> browserEventDuration = new Tuple3<String, String, Long>();
                                 Long currentTimestamp = browserTuple.f2;
                                 Long duration = currentTimestamp - lastTimestamp.value();
                                 browserEventDuration.f2 = duration;
@@ -129,7 +138,10 @@ public class SummaryDuration {
                                         + ", Duration: " + browserEventDuration.f2
                                 );
                             }
+                            // System.out.println(browserEventDuration.f0 + " current action: " + browserTuple.f1);
+                            // System.out.println(browserEventDuration.f0 + " lastAction pre-update: " + lastAction.value());
                             lastAction.update(browserTuple.f1);
+                            // System.out.println(browserEventDuration.f0 + " lastAction post-update: " + lastAction.value());
                             lastTimestamp.update(browserTuple.f2);
 
 
