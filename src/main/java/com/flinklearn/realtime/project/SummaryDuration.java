@@ -76,7 +76,6 @@ public class SummaryDuration {
                     new MapFunction<String, BrowserEvent>() {
                         @Override
                         public BrowserEvent map(String bStr) throws Exception {
-                            // System.out.println("* Received new event: " + bStr);
                             return new BrowserEvent(bStr);
                         }
                     }
@@ -93,57 +92,56 @@ public class SummaryDuration {
                                 i.getAction(),
                                 i.getTimestamp()
                         );
-                        // System.out.println("Mapped action: " + browserTuple.f1);
                         return browserTuple;
                     })
                     .returns(Types.TUPLE(Types.STRING, Types.STRING, Types.LONG))
                     .keyBy(0)
                     .map(new RichMapFunction<Tuple3<String, String, Long>, Tuple3<String, String, Long>>() {
 
+                        // Define value states for last timestamp and action
                         public transient ValueState<Long> lastTimestamp;
                         public transient ValueState<String> lastAction;
 
                         @Override
                         public void open(Configuration config) throws Exception {
+                            // Create value state descriptors for last timestamp and action
                             ValueStateDescriptor<Long> timestampDescriptor = new ValueStateDescriptor<Long>(
                                     "last-timestamp",
                                     TypeInformation.of(new TypeHint<Long>() {})
                             );
-                            lastTimestamp = getRuntimeContext().getState(timestampDescriptor);
-
                             ValueStateDescriptor<String> actionDescriptor = new ValueStateDescriptor<String>(
                                     "last-action",
                                     TypeInformation.of(new TypeHint<String>() {})
                             );
+
+                            // Get last timestamp and action from runtime context
+                            lastTimestamp = getRuntimeContext().getState(timestampDescriptor);
                             lastAction = getRuntimeContext().getState(actionDescriptor);
                         }
 
                         @Override
                         public Tuple3<String, String, Long> map(Tuple3<String, String, Long> browserTuple) throws Exception {
+                            // Create a new tuple with the same values as browserTuple, but with separate reference
                             Tuple3<String, String, Long> browserEventDuration = new Tuple3<String, String, Long>(
                                     browserTuple.f0,
                                     browserTuple.f1,
                                     browserTuple.f2
                             );
-                            // System.out.println(browserTuple);
                             if (lastTimestamp.value() != null) {
-                                // Tuple3<String, String, Long> browserEventDuration = new Tuple3<String, String, Long>();
                                 Long currentTimestamp = browserTuple.f2;
                                 Long duration = currentTimestamp - lastTimestamp.value();
-                                browserEventDuration.f2 = duration;
                                 browserEventDuration.f1 = lastAction.value();
+                                browserEventDuration.f2 = duration;
                                 System.out.println("[^] Browser Event:"
                                         + " User: " + browserEventDuration.f0
                                         + ", Action: " + browserEventDuration.f1
                                         + ", Duration: " + browserEventDuration.f2
                                 );
                             }
-                            // System.out.println(browserEventDuration.f0 + " current action: " + browserTuple.f1);
-                            // System.out.println(browserEventDuration.f0 + " lastAction pre-update: " + lastAction.value());
-                            lastAction.update(browserTuple.f1);
-                            // System.out.println(browserEventDuration.f0 + " lastAction post-update: " + lastAction.value());
-                            lastTimestamp.update(browserTuple.f2);
 
+                            // Update state values
+                            lastAction.update(browserTuple.f1);
+                            lastTimestamp.update(browserTuple.f2);
 
                             return browserEventDuration;
                         }
@@ -168,12 +166,16 @@ public class SummaryDuration {
 
                                     long currentTime = System.currentTimeMillis();
 
+                                    // Set first watermark if it hasn't been set yet
+                                    // If it has been more than 10 seconds since the last watermark,
+                                    // set the watermark to the current time
                                     if(currentWatermark == 0L) {
                                         currentWatermark = currentTime;
                                     } else if(currentTime - currentWatermark > delay) {
                                         currentWatermark = currentTime;
                                     }
 
+                                    // Return new watermark with 2 second buffer
                                     return new Watermark(currentWatermark - buffer);
 
                                 }
@@ -191,6 +193,7 @@ public class SummaryDuration {
 
             // Process the watermarked stream
             SingleOutputStreamOperator<Tuple4<String, String, Long, Integer>> browserEventProcessed = browserEventWatermarked
+                    // Use an anonymous function to map BrowserEvent object to a Tuple4
                     .map(i -> new Tuple4<String, String, Long, Integer>(
                             i.getUser(),
                             i.getAction(),
@@ -230,8 +233,7 @@ public class SummaryDuration {
                         }
                     });
 
-//            browserEventProcessed.print();
-
+            // Process side output late data
             DataStream<Tuple4<String, String, Long, Integer>> lateEvents =
                     browserEventProcessed.getSideOutput(lateBrowserTrail);
 
