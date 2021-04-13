@@ -4,11 +4,18 @@ import com.flinklearn.realtime.common.Utils;
 import com.flinklearn.realtime.datasource.BrowserStreamDataGenerator;
 import com.flinklearn.realtime.datastreamapi.BrowserEvent;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -40,6 +47,8 @@ public class SummaryDuration {
              ****************************************************************************/
             final StreamExecutionEnvironment streamEnv =
                     StreamExecutionEnvironment.getExecutionEnvironment();
+
+            // Important! Set stream time characteristic to allow for watermarked streams
             streamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
             streamEnv.setParallelism(1);
 
@@ -62,7 +71,8 @@ public class SummaryDuration {
              ****************************************************************************/
             DataStream<String> browserEventString = streamEnv.addSource(kafkaConsumer);
 
-            DataStream<BrowserEvent> browserEventObject = browserEventString.map(
+            DataStream<BrowserEvent> browserEventObject = browserEventString
+                    .map(
                     new MapFunction<String, BrowserEvent>() {
                         @Override
                         public BrowserEvent map(String bStr) throws Exception {
@@ -71,6 +81,62 @@ public class SummaryDuration {
                         }
                     }
             );
+
+            /****************************************************************************
+             * Perform stateful operations to print event durations
+             ****************************************************************************/
+
+            DataStream<Tuple3<String, String, Long>> browserEventDurations = browserEventObject
+                    .map(i -> new Tuple3<String, String, Long>(
+                            i.getUser(),
+                            i.getAction(),
+                            i.getTimestamp()
+                    ))
+                    .returns(Types.TUPLE(Types.STRING, Types.STRING, Types.LONG))
+                    .keyBy(0)
+                    .map(new RichMapFunction<Tuple3<String, String, Long>, Tuple3<String, String, Long>>() {
+
+                        public transient ValueState<Long> lastTimestamp;
+                        public transient ValueState<String> lastAction;
+
+                        @Override
+                        public void open(Configuration config) throws Exception {
+                            ValueStateDescriptor<Long> timestampDescriptor = new ValueStateDescriptor<Long>(
+                                    "last-timestamp",
+                                    TypeInformation.of(new TypeHint<Long>() {})
+                            );
+                            lastTimestamp = getRuntimeContext().getState(timestampDescriptor);
+
+                            ValueStateDescriptor<String> actionDescriptor = new ValueStateDescriptor<String>(
+                                    "last-action",
+                                    TypeInformation.of(new TypeHint<String>() {})
+                            );
+                            lastAction = getRuntimeContext().getState(actionDescriptor);
+                        }
+
+                        @Override
+                        public Tuple3<String, String, Long> map(Tuple3<String, String, Long> browserTuple) throws Exception {
+                            Tuple3<String, String, Long> browserEventDuration = browserTuple;
+                            //System.out.println(lastTimestamp.value());
+                            if (lastTimestamp.value() != null) {
+                                Long currentTimestamp = browserTuple.f2;
+                                Long duration = currentTimestamp - lastTimestamp.value();
+                                browserEventDuration.f2 = duration;
+                                browserEventDuration.f1 = lastAction.value();
+                                System.out.println("[^] Browser Event:"
+                                        + " User: " + browserEventDuration.f0
+                                        + ", Action: " + browserEventDuration.f1
+                                        + ", Duration: " + browserEventDuration.f2
+                                );
+                            }
+                            lastAction.update(browserTuple.f1);
+                            lastTimestamp.update(browserTuple.f2);
+
+
+                            return browserEventDuration;
+                        }
+                    });
+
 
             /****************************************************************************
              * Output 10-second summaries using event time operations
@@ -121,8 +187,10 @@ public class SummaryDuration {
                     ))
                     .returns(Types.TUPLE(Types.STRING, Types.STRING, Types.LONG, Types.INT))
                     .keyBy(0)
+                    // Important! Use .timeWindow() instead of .timeWindowAll() for key-partitioned streams
                     .timeWindow(Time.seconds(10))
                     .sideOutputLateData(lateBrowserTrail)
+                    // Aggregate counts by user
                     .reduce((x, y) ->
                         new Tuple4<String, String, Long, Integer>(
                                 x.f0,
@@ -154,10 +222,6 @@ public class SummaryDuration {
 
             DataStream<Tuple4<String, String, Long, Integer>> lateEvents =
                     browserEventProcessed.getSideOutput(lateBrowserTrail);
-
-            /****************************************************************************
-             * Perform stateful operations to print event durations
-             ****************************************************************************/
 
             /****************************************************************************
              * Start browser event thread and execute pipeline

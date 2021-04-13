@@ -90,8 +90,7 @@ public class StatefulOperations {
 
                         @Override
                         public Tuple2<String, Long> map(Tuple3<String, String, Long> auditObj) throws Exception {
-                            Tuple2<String, Long> alertTuple =
-                                    new Tuple2<String, Long>("No-Alerts", 0L);
+                            Tuple2<String, Long> alertTuple = new Tuple2<String, Long>("No-Alerts", 0L);
                             if(auditObj.f1.equals("Delete")) {
                                 if(lastDelete.value() != null) {
                                     long timeDifference = auditObj.f2 - lastDelete.value();
