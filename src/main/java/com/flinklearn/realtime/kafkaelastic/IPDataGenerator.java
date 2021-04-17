@@ -27,13 +27,16 @@ public class IPDataGenerator implements Runnable {
 
         try {
 
+            // Set Kafka producer config properties
             Properties properties = new Properties();
             properties.put("bootstrap.servers", "localhost:9092");
             properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             properties.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
+            // Create Kafka producer
             Producer<String, String> myProducer = new KafkaProducer<String, String>(properties);
 
+            // Create lists for ip and users to randomly select from
             List<String> ipList = new ArrayList<>();
             ipList.add("185.77.248.70");
             ipList.add("13.66.139.159");
@@ -50,7 +53,10 @@ public class IPDataGenerator implements Runnable {
 
             Random random = new Random();
 
+            // Randomly generate 100 records
             for(int i = 0; i < 100; i++) {
+
+                // Randomly select data
                 String ip = ipList.get(random.nextInt(ipList.size()));
                 String conn = connList.get(random.nextInt(connList.size()));
 
@@ -61,6 +67,7 @@ public class IPDataGenerator implements Runnable {
 
                 String currentTime = String.valueOf(System.currentTimeMillis());
 
+                // Create producer record with topic, key, value
                 ProducerRecord<String, String> myRecord = new ProducerRecord<String, String>(
                         "ip.info",
                         currentTime,

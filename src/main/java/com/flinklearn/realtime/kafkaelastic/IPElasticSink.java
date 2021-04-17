@@ -40,6 +40,8 @@ public class IPElasticSink {
         // Begin reading from Kafka
         DataStream<String> stream = readFromKafka(env);
         stream.print();
+
+        // Perform operations and write stream to elastic
         writeToElastic(stream);
 
         // Start ip data generator
@@ -52,12 +54,13 @@ public class IPElasticSink {
     }
 
     public static DataStream<String> readFromKafka(StreamExecutionEnvironment env) {
-        env.enableCheckpointing(5000);
-        // set up the execution environment
+
+        // Set properties for Kafka
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", "localhost:9092");
         properties.setProperty("group.id", "test");
 
+        // Add kafka as streaming source
         DataStream<String> stream = env.addSource(
                 new FlinkKafkaConsumer<>("ip.info", new SimpleStringSchema(), properties));
         return stream;
@@ -65,14 +68,13 @@ public class IPElasticSink {
 
     public static void writeToElastic(DataStream<String> input) {
 
-        Map<String, String> config = new HashMap<>();
-
         try {
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
             httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
             httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
+            // Create indexing function
             ElasticsearchSinkFunction<String> indexLog = new ElasticsearchSinkFunction<String>() {
                 public IndexRequest createIndexRequest(String element) {
                     String[] logContent = element.trim().split(",");
@@ -92,6 +94,7 @@ public class IPElasticSink {
                 }
             };
 
+            // Create failure handler function
             ActionRequestFailureHandler failureHandler = new ActionRequestFailureHandler() {
                 @Override
                 public void onFailure(ActionRequest action,
@@ -112,10 +115,15 @@ public class IPElasticSink {
                 }
             };
 
+            // Create sink builder
             ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<String>(httpHosts, indexLog);
+
+            // Set config options
             esSinkBuilder.setBulkFlushMaxActions(25);
             esSinkBuilder.setFailureHandler(failureHandler);
             esSinkBuilder.setBulkFlushBackoffRetries(1);
+
+            // Add elastic sink to input stream
             input.addSink(esSinkBuilder.build());
         } catch (Exception e) {
             System.out.println(e);
