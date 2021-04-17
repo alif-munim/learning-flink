@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.datastreamapi;
+package com.flinklearn.realtime.project;
 
 /****************************************************************************
  * Object template for browser events that will be converted from strings

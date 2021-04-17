@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.datasource;
+package com.flinklearn.realtime.project;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;

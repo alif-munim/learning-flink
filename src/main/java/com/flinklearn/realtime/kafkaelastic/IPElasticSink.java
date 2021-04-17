@@ -1,7 +1,6 @@
 package com.flinklearn.realtime.kafkaelastic;
 
 import com.flinklearn.realtime.common.Utils;
-import com.flinklearn.realtime.datasource.IPDataGenerator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -14,7 +13,6 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
-import java.net.InetSocketAddress;
 import java.util.*;
 
 
@@ -26,7 +24,7 @@ import java.util.*;
  * Revised for elasticsearch 7 by Alif Munim on 04/13/2020
  */
 
-public class KafkaFlinkElastic {
+public class IPElasticSink {
 
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

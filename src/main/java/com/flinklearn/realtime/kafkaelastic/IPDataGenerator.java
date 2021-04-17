@@ -1,16 +1,14 @@
-package com.flinklearn.realtime.datasource;
+package com.flinklearn.realtime.kafkaelastic;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
-import javax.xml.ws.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
 
 public class IPDataGenerator implements Runnable {
 

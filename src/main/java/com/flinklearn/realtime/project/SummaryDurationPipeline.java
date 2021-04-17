@@ -1,18 +1,14 @@
 package com.flinklearn.realtime.project;
 
 import com.flinklearn.realtime.common.Utils;
-import com.flinklearn.realtime.datasource.BrowserStreamDataGenerator;
-import com.flinklearn.realtime.datastreamapi.BrowserEvent;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
@@ -36,7 +32,7 @@ import java.util.Properties;
  * (2) Compute the duration for each action and print user, action, duration
  ****************************************************************************/
 
-public class SummaryDuration {
+public class SummaryDurationPipeline {
 
     public static void main(String[] args) {
 
