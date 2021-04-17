@@ -57,10 +57,6 @@ public class KafkaFlinkElastic {
 
         Map<String, String> config = new HashMap<>();
 
-        // This instructs the sink to emit after every element, otherwise they would be buffered
-        config.put("bulk.flush.max.actions", "1");
-        config.put("cluster.name", "es_keira");
-
         try {
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
@@ -87,7 +83,7 @@ public class KafkaFlinkElastic {
             };
 
             ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<String>(httpHosts, indexLog);
-            esSinkBuilder.setBulkFlushMaxActions(1);
+            esSinkBuilder.setBulkFlushMaxActions(25);
             input.addSink(esSinkBuilder.build());
         } catch (Exception e) {
             System.out.println(e);
