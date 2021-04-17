@@ -4,14 +4,19 @@ import com.flinklearn.realtime.common.Utils;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.http.HttpHost;
+import org.elasticsearch.ElasticsearchParseException;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 
 import java.util.*;
 
@@ -28,13 +33,20 @@ public class IPElasticSink {
 
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // Enable checkpointing every 500 messages
+        env.enableCheckpointing(500);
+
+        // Begin reading from Kafka
         DataStream<String> stream = readFromKafka(env);
         stream.print();
         writeToElastic(stream);
+
         // Start ip data generator
         Utils.printHeader("Starting ip data generator...");
         Thread ipData = new Thread(new IPDataGenerator());
         ipData.start();
+
         // execute program
         env.execute("Kafka to Elasticsearch!");
     }
@@ -80,8 +92,30 @@ public class IPElasticSink {
                 }
             };
 
+            ActionRequestFailureHandler failureHandler = new ActionRequestFailureHandler() {
+                @Override
+                public void onFailure(ActionRequest action,
+                               Throwable failure,
+                               int restStatusCode,
+                               RequestIndexer indexer) throws Throwable {
+
+                    if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
+                        // full queue; re-add document for indexing
+                        indexer.add(action);
+                    } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
+                        // malformed document; simply drop request without failing sink
+                    } else {
+                        // for all other failures, fail the sink
+                        // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                        throw failure;
+                    }
+                }
+            };
+
             ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<String>(httpHosts, indexLog);
             esSinkBuilder.setBulkFlushMaxActions(25);
+            esSinkBuilder.setFailureHandler(failureHandler);
+            esSinkBuilder.setBulkFlushBackoffRetries(1);
             input.addSink(esSinkBuilder.build());
         } catch (Exception e) {
             System.out.println(e);
