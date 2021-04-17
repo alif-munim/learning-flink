@@ -1,5 +1,7 @@
 package com.flinklearn.realtime.kafkaelastic;
 
+import com.flinklearn.realtime.common.Utils;
+import com.flinklearn.realtime.datasource.IPDataGenerator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,6 +33,10 @@ public class KafkaFlinkElastic {
         DataStream<String> stream = readFromKafka(env);
         stream.print();
         writeToElastic(stream);
+        // Start ip data generator
+        Utils.printHeader("Starting ip data generator...");
+        Thread ipData = new Thread(new IPDataGenerator());
+        ipData.start();
         // execute program
         env.execute("Kafka to Elasticsearch!");
     }
@@ -43,7 +49,7 @@ public class KafkaFlinkElastic {
         properties.setProperty("group.id", "test");
 
         DataStream<String> stream = env.addSource(
-                new FlinkKafkaConsumer<>("test", new SimpleStringSchema(), properties));
+                new FlinkKafkaConsumer<>("ip.info", new SimpleStringSchema(), properties));
         return stream;
     }
 
@@ -57,16 +63,13 @@ public class KafkaFlinkElastic {
 
         try {
             // Add elasticsearch hosts on startup
-            List<InetSocketAddress> transports = new ArrayList<>();
-            transports.add(new InetSocketAddress("127.0.0.1", 9300)); // port is 9300 not 9200 for ES TransportClient
-
             List<HttpHost> httpHosts = new ArrayList<>();
             httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
             httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
             ElasticsearchSinkFunction<String> indexLog = new ElasticsearchSinkFunction<String>() {
                 public IndexRequest createIndexRequest(String element) {
-                    String[] logContent = element.trim().split("\t");
+                    String[] logContent = element.trim().split(",");
                     Map<String, String> esJson = new HashMap<>();
                     esJson.put("IP", logContent[0]);
                     esJson.put("info", logContent[1]);
