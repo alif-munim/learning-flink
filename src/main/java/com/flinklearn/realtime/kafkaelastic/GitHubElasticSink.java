@@ -3,6 +3,7 @@ package com.flinklearn.realtime.kafkaelastic;
 import com.flinklearn.realtime.common.Utils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -70,14 +71,55 @@ public class GitHubElasticSink {
 
         try {
 
-            input.map(new MapFunction<ObjectNode, ObjectNode>() {
+            DataStream<JsonNode> jsonData = input.map(new MapFunction<ObjectNode, JsonNode>() {
                 @Override
-                public ObjectNode map(ObjectNode value) {
-                    String type = value.get("value").get("type").asText();
-                    System.out.println("this is the type: " + type);
-                    return value;
+                public JsonNode map(ObjectNode value) {
+                    JsonNode object = value.get("value");
+                    return object;
                 }
             });
+
+            // Add elasticsearch hosts on startup
+            List<HttpHost> httpHosts = new ArrayList<>();
+            httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+            httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
+
+            // Create indexing function
+            ElasticsearchSinkFunction<JsonNode> indexLog = new ElasticsearchSinkFunction<JsonNode>() {
+                public IndexRequest createIndexRequest(JsonNode element) {
+
+                    // String[] logContent = element.trim().split(",");
+                    String type = element.get("type").asText();
+                    String user = element.get("user").asText();
+                    String branch = element.get("branch").asText();
+
+                    Map<String, String> esJson = new HashMap<>();
+                    esJson.put("type", type);
+                    esJson.put("user", user);
+                    esJson.put("branch", branch);
+
+                    return Requests
+                            .indexRequest()
+                            .index("github")
+                            .source(esJson);
+                }
+
+                @Override
+                public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
+                    indexer.add(createIndexRequest(element));
+                }
+            };
+
+
+            // Create sink builder
+            ElasticsearchSink.Builder<JsonNode> esSinkBuilder = new ElasticsearchSink.Builder<JsonNode>(httpHosts, indexLog);
+
+            // Set config options
+            esSinkBuilder.setBulkFlushMaxActions(25);
+            esSinkBuilder.setBulkFlushBackoffRetries(1);
+
+            // Add elastic sink to input stream
+            jsonData.addSink(esSinkBuilder.build());
 
         } catch (Exception e) {
             System.out.println(e);
