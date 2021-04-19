@@ -10,6 +10,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
@@ -24,10 +25,21 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Requests;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.*;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import scala.collection.script.Update;
 
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -37,6 +49,9 @@ import java.util.*;
 
 public class GitHubElasticSink {
 
+    private static RestClient restClient = null;
+    private static ObjectMapper mapper = new ObjectMapper();
+
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -44,19 +59,62 @@ public class GitHubElasticSink {
         env.enableCheckpointing(500);
 
         // Begin reading from Kafka
-        DataStream<ObjectNode> stream = readFromKafka(env);
-        stream.print();
+//        DataStream<ObjectNode> stream = readFromKafka(env);
+//        stream.timeWindowAll(
+//                Time.seconds(10),
+//                Time.seconds(5)
+//        );
+//        stream.print();
 
         // Add elastic sink to source
-        writeToElastic(stream);
+//        writeToElastic(stream);
 
         // Start ip data generator
-        Utils.printHeader("Starting ip data generator...");
-        Thread githubData = new Thread(new GitHubDataGenerator());
-        githubData.start();
+//        Utils.printHeader("Starting ip data generator...");
+//        Thread githubData = new Thread(new GitHubDataGenerator());
+//        githubData.start();
+
+        // Check if element exists
+//        JsonNode checkElement = getById("1337", "pullrequest");
+//        System.out.println(checkElement.toString());
+
+        // Create client
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(
+                        new HttpHost("localhost", 9200, "http"),
+                        new HttpHost("localhost", 9201, "http")));
+
+        // Create search request and source builder
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.query(QueryBuilders.termQuery("id", "1337"));
+        sourceBuilder.from(0);
+        sourceBuilder.size(5);
+        sourceBuilder.timeout(new TimeValue(5, TimeUnit.SECONDS));
+
+        SearchRequest searchRequest = new SearchRequest();
+        searchRequest.indices("pullrequest");
+        searchRequest.source(sourceBuilder);
+
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+
+        // Get hits from response
+        SearchHits hits = searchResponse.getHits();
+        SearchHit[] searchHits = hits.getHits();
+
+        // Check if there were hits
+        if(searchHits.length > 0) {
+            System.out.println("There were hits :)");
+            for (SearchHit hit : searchHits) {
+                // do something with the SearchHit
+                String sourceAsString = hit.getSourceAsString();
+                System.out.println(sourceAsString);
+            }
+        } else {
+            System.out.println("There were no hits :(");
+        }
 
         // execute program
-        env.execute("Kafka to Elasticsearch!");
+        //env.execute("Kafka to Elasticsearch!");
     }
 
     public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env) {
@@ -73,11 +131,13 @@ public class GitHubElasticSink {
     }
 
     public static Map jsonMapping(JsonNode element) {
+        String id = element.get("id").asText();
         String type = element.get("type").asText();
         String user = element.get("user").asText();
         String branch = element.get("branch").asText();
 
         Map<String, String> esJson = new HashMap<>();
+        esJson.put("id", id);
         esJson.put("type", type);
         esJson.put("user", user);
         esJson.put("branch", branch);
@@ -85,18 +145,39 @@ public class GitHubElasticSink {
         return esJson;
     }
 
+    private static JsonNode getById(String id, String index) throws IOException {
+
+        JsonNode body = null;
+        Request request = new Request("GET", "localhost:9200/pullrequest");
+        Response response = null;
+        try {
+            response = restClient.performRequest(request);
+            body = mapper.readTree(response.getEntity().getContent());
+        } catch (IOException e) {
+            if (e instanceof ResponseException) {
+                if (((ResponseException) e).getResponse().getStatusLine().getStatusCode() == 404) {
+                    return null;
+                } else {
+                    throw e;
+                }
+            }
+        }
+        return body;
+    }
+
     public static void writeToElastic(DataStream<ObjectNode> input) {
 
         try {
 
-            DataStream<JsonNode> jsonData = input.map(new MapFunction<ObjectNode, JsonNode>() {
-                @Override
-                public JsonNode map(ObjectNode value) {
-                    JsonNode object = value.get("value");
-                    System.out.println(object.toString());
-                    return object;
-                }
-            });
+            DataStream<JsonNode> jsonData = input
+                .map(new MapFunction<ObjectNode, JsonNode>() {
+                    @Override
+                    public JsonNode map(ObjectNode value) {
+                        JsonNode object = value.get("value");
+                        System.out.println(object.toString());
+                        return object;
+                    }
+                });
 
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
@@ -105,6 +186,7 @@ public class GitHubElasticSink {
 
             // Create indexing function
             ElasticsearchSinkFunction<JsonNode> indexLog = new ElasticsearchSinkFunction<JsonNode>() {
+
                 public IndexRequest createIndexRequest(JsonNode element) {
 
                     // Pass json element to mapping function and get type
@@ -135,18 +217,22 @@ public class GitHubElasticSink {
 
                 }
 
+                public UpdateRequest createUpdateRequest(JsonNode element) {
+                    UpdateRequest update = new UpdateRequest();
+                    return update;
+                }
+
                 @Override
                 public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
                     indexer.add(createIndexRequest(element));
                 }
             };
 
-
             // Create sink builder
             ElasticsearchSink.Builder<JsonNode> esSinkBuilder = new ElasticsearchSink.Builder<JsonNode>(httpHosts, indexLog);
 
             // Set config options
-            esSinkBuilder.setBulkFlushMaxActions(500);
+            esSinkBuilder.setBulkFlushMaxActions(100);
             esSinkBuilder.setBulkFlushBackoffRetries(1);
 
             // Add elastic sink to input stream
