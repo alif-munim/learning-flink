@@ -47,42 +47,8 @@ public class GitHubElasticSink {
         DataStream<ObjectNode> stream = readFromKafka(env);
         stream.print();
 
-        // Create output tags
-        final OutputTag<ObjectNode> filechangeTag = new OutputTag<ObjectNode>("filechange-output"){};
-        final OutputTag<ObjectNode> commentTag = new OutputTag<ObjectNode>("comment-output"){};
-
-        // Split stream
-        SingleOutputStreamOperator<ObjectNode> mainPullRequestStream = stream.process(
-                new ProcessFunction<ObjectNode, ObjectNode>() {
-                    @Override
-                    public void processElement(ObjectNode object, Context context, Collector<ObjectNode> collector) throws Exception {
-
-                        String type = object.get("value").get("type").asText();
-
-                        if(type.equals("pullrequest")) {
-                            System.out.println("pr");
-                            collector.collect(object);
-                        } else if (type.equals("filechange")) {
-                            System.out.println("filechange");
-                            context.output(filechangeTag, object);
-                        } else if (type.equals("comment")) {
-                            System.out.println("comment");
-                            context.output(commentTag, object);
-                        } else {
-                            // Discard data
-                        }
-                    }
-                }
-        );
-
-        // Get side outputs
-        DataStream<ObjectNode> filechangeStream = mainPullRequestStream.getSideOutput(filechangeTag);
-        DataStream<ObjectNode> commentStream = mainPullRequestStream.getSideOutput(commentTag);
-
-        // Perform operations and write stream to elastic
-        writeToElastic(mainPullRequestStream, "pullrequest");
-        writeToElastic(filechangeStream, "filechange");
-        writeToElastic(commentStream, "comment");
+        // Add elastic sink to source
+        writeToElastic(stream);
 
         // Start ip data generator
         Utils.printHeader("Starting ip data generator...");
@@ -106,7 +72,20 @@ public class GitHubElasticSink {
         return stream;
     }
 
-    public static void writeToElastic(DataStream<ObjectNode> input, String index) {
+    public static Map jsonMapping(JsonNode element) {
+        String type = element.get("type").asText();
+        String user = element.get("user").asText();
+        String branch = element.get("branch").asText();
+
+        Map<String, String> esJson = new HashMap<>();
+        esJson.put("type", type);
+        esJson.put("user", user);
+        esJson.put("branch", branch);
+
+        return esJson;
+    }
+
+    public static void writeToElastic(DataStream<ObjectNode> input) {
 
         try {
 
@@ -128,26 +107,37 @@ public class GitHubElasticSink {
             ElasticsearchSinkFunction<JsonNode> indexLog = new ElasticsearchSinkFunction<JsonNode>() {
                 public IndexRequest createIndexRequest(JsonNode element) {
 
-                    // String[] logContent = element.trim().split(",");
-                    String type = element.get("type").asText();
-                    String user = element.get("user").asText();
-                    String branch = element.get("branch").asText();
+                    // Pass json element to mapping function and get type
+                    Map<String, String> esJson = jsonMapping(element);
+                    String type = esJson.get("type");
 
-                    Map<String, String> esJson = new HashMap<>();
-                    esJson.put("type", type);
-                    esJson.put("user", user);
-                    esJson.put("branch", branch);
+                    // Create an empty index request
+                    IndexRequest request = Requests.indexRequest();
 
-                    return Requests
-                            .indexRequest()
-                            .index(index)
+                    // Choose index
+                    if(type.equals("pullrequest")) {
+                        request
+                            .index("pullrequest")
                             .source(esJson);
+                    } else if(type.equals("filechange")) {
+                        request
+                            .index("filechange")
+                            .source(esJson);
+                    } else if(type.equals("comment")) {
+                        request
+                            .index("comment")
+                            .source(esJson);
+                    } else {
+                        // Discard
+                    }
+
+                    return request;
+
                 }
 
                 @Override
                 public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
                     indexer.add(createIndexRequest(element));
-                    System.out.println("Request to index: " + index);
                 }
             };
 
@@ -156,7 +146,7 @@ public class GitHubElasticSink {
             ElasticsearchSink.Builder<JsonNode> esSinkBuilder = new ElasticsearchSink.Builder<JsonNode>(httpHosts, indexLog);
 
             // Set config options
-            esSinkBuilder.setBulkFlushMaxActions(25);
+            esSinkBuilder.setBulkFlushMaxActions(500);
             esSinkBuilder.setBulkFlushBackoffRetries(1);
 
             // Add elastic sink to input stream

@@ -56,7 +56,7 @@ public class GitHubDataGenerator implements Runnable {
 
             Random random = new Random();
 
-            for(int i = 0; i < 25; i++) {
+            for(int i = 0; i < 5000; i++) {
 
                 // Create random json object
                 String thisType = type.get(random.nextInt(type.size()));
@@ -80,7 +80,7 @@ public class GitHubDataGenerator implements Runnable {
                 System.out.println(ANSI_PURPLE + "GitHub API, sending response: "
                         + jsonData  + ANSI_RESET);
 
-                Thread.sleep(520);
+                Thread.sleep(5);
             }
 
         } catch(Exception e) {
