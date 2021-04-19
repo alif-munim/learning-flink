@@ -4,9 +4,12 @@ import com.flinklearn.realtime.common.Utils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
@@ -14,7 +17,9 @@ import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.OutputTag;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.ActionRequest;
@@ -42,8 +47,42 @@ public class GitHubElasticSink {
         DataStream<ObjectNode> stream = readFromKafka(env);
         stream.print();
 
+        // Create output tags
+        final OutputTag<ObjectNode> filechangeTag = new OutputTag<ObjectNode>("filechange-output"){};
+        final OutputTag<ObjectNode> commentTag = new OutputTag<ObjectNode>("comment-output"){};
+
+        // Split stream
+        SingleOutputStreamOperator<ObjectNode> mainPullRequestStream = stream.process(
+                new ProcessFunction<ObjectNode, ObjectNode>() {
+                    @Override
+                    public void processElement(ObjectNode object, Context context, Collector<ObjectNode> collector) throws Exception {
+
+                        String type = object.get("value").get("type").asText();
+
+                        if(type.equals("pullrequest")) {
+                            System.out.println("pr");
+                            collector.collect(object);
+                        } else if (type.equals("filechange")) {
+                            System.out.println("filechange");
+                            context.output(filechangeTag, object);
+                        } else if (type.equals("comment")) {
+                            System.out.println("comment");
+                            context.output(commentTag, object);
+                        } else {
+                            // Discard data
+                        }
+                    }
+                }
+        );
+
+        // Get side outputs
+        DataStream<ObjectNode> filechangeStream = mainPullRequestStream.getSideOutput(filechangeTag);
+        DataStream<ObjectNode> commentStream = mainPullRequestStream.getSideOutput(commentTag);
+
         // Perform operations and write stream to elastic
-        writeToElastic(stream);
+        writeToElastic(mainPullRequestStream, "pullrequest");
+        writeToElastic(filechangeStream, "filechange");
+        writeToElastic(commentStream, "comment");
 
         // Start ip data generator
         Utils.printHeader("Starting ip data generator...");
@@ -67,7 +106,7 @@ public class GitHubElasticSink {
         return stream;
     }
 
-    public static void writeToElastic(DataStream<ObjectNode> input) {
+    public static void writeToElastic(DataStream<ObjectNode> input, String index) {
 
         try {
 
@@ -75,6 +114,7 @@ public class GitHubElasticSink {
                 @Override
                 public JsonNode map(ObjectNode value) {
                     JsonNode object = value.get("value");
+                    System.out.println(object.toString());
                     return object;
                 }
             });
@@ -100,13 +140,14 @@ public class GitHubElasticSink {
 
                     return Requests
                             .indexRequest()
-                            .index("github")
+                            .index(index)
                             .source(esJson);
                 }
 
                 @Override
                 public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
                     indexer.add(createIndexRequest(element));
+                    System.out.println("Request to index: " + index);
                 }
             };
 
