@@ -6,10 +6,12 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
@@ -58,21 +60,40 @@ public class GitHubElasticSink {
         env.enableCheckpointing(500);
 
         // Begin reading from Kafka
-        DataStream<ObjectNode> stream = readFromKafka(env);
+        DataStream<ObjectNode> pullRequestStream = readFromKafka(env, "pullrequest");
+        DataStream<ObjectNode> issueStream = readFromKafka(env, "issue");
+
+        // Connect streams
+        ConnectedStreams<ObjectNode, ObjectNode> githubConnected = pullRequestStream.connect(issueStream);
+        DataStream<ObjectNode> githubStream = githubConnected.map(
+                new CoMapFunction<ObjectNode, ObjectNode, ObjectNode>() {
+                    @Override
+                    public ObjectNode map1(ObjectNode obj) throws Exception {
+                        ObjectNode newObj = ((ObjectNode)obj.get("value")).put("topic", "pullrequest");
+                        return newObj;
+                    }
+
+                    @Override
+                    public ObjectNode map2(ObjectNode obj) throws Exception {
+                        ObjectNode newObj = ((ObjectNode)obj.get("value")).put("topic", "issue");
+                        return newObj;
+                    }
+                }
+        );
 
         // Add elastic sink to source
-        writeToElastic(stream);
+        writeToElastic(githubStream);
 
         // Start ip data generator
-        Utils.printHeader("Starting ip data generator...");
-        Thread githubData = new Thread(new GitHubDataGenerator());
-        githubData.start();
+//        Utils.printHeader("Starting ip data generator...");
+//        Thread githubData = new Thread(new GitHubDataGenerator());
+//        githubData.start();
 
         // Execute pipeline
         env.execute("Kafka to Elasticsearch!");
     }
 
-    public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env) {
+    public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env, String topic) {
 
         // Set properties for Kafka
         Properties properties = new Properties();
@@ -81,11 +102,11 @@ public class GitHubElasticSink {
 
         // Add kafka as streaming source
         DataStream<ObjectNode> stream = env.addSource(
-                new FlinkKafkaConsumer<>("github.data", new JSONKeyValueDeserializationSchema(false), properties));
+                new FlinkKafkaConsumer<>(topic, new JSONKeyValueDeserializationSchema(false), properties));
         return stream;
     }
 
-    public static Map jsonMapping(JsonNode element) {
+    public static Map pullRequestMapping(JsonNode element) {
         String id = element.get("id").asText();
         String type = element.get("type").asText();
         String user = element.get("user").asText();
@@ -104,28 +125,19 @@ public class GitHubElasticSink {
 
         try {
 
-            DataStream<JsonNode> jsonData = input
-                .map(new MapFunction<ObjectNode, JsonNode>() {
-                    @Override
-                    public JsonNode map(ObjectNode value) {
-                        JsonNode object = value.get("value");
-                        System.out.println(object.toString());
-                        return object;
-                    }
-                });
-
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
             httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
             httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
             // Create indexing function
-            ElasticsearchSinkFunction<JsonNode> indexLog = new ElasticsearchSinkFunction<JsonNode>() {
+            ElasticsearchSinkFunction<ObjectNode> indexLog = new ElasticsearchSinkFunction<ObjectNode>() {
 
-                public IndexRequest createIndexRequest(JsonNode element) throws IOException {
+                public IndexRequest createIndexRequest(ObjectNode element) throws IOException {
 
-                    // Pass json element to mapping function and get type
-                    Map<String, String> esJson = jsonMapping(element);
+                    // Pass element to mapping function and get type
+                    String topic = element.get("topic").asText();
+                    Map<String, String> esJson = pullRequestMapping(element);
                     String type = esJson.get("type");
                     String id = esJson.get("id");
 
@@ -133,30 +145,49 @@ public class GitHubElasticSink {
                     IndexRequest request = Requests.indexRequest();
 
                     // Choose index
-                    if(type.equals("pullrequest")) {
-                        request
-                            .index("pullrequest")
-                            .id(id)
-                            .source(esJson);
-                    } else if(type.equals("filechange")) {
-                        request
-                            .index("filechange")
-                            .id(id)
-                            .source(esJson);
-                    } else if(type.equals("comment")) {
-                        request
-                            .index("comment")
-                            .id(id)
-                            .source(esJson);
+                    if(topic.equals("pullrequest")) {
+                        if(type.equals("pullrequest")) {
+                            request
+                                    .index("pullrequest")
+                                    .id(id)
+                                    .source(esJson);
+                        } else if(type.equals("filechange")) {
+                            request
+                                    .index("filechange")
+                                    .id(id)
+                                    .source(esJson);
+                        } else if(type.equals("comment")) {
+                            request
+                                    .index("comment")
+                                    .id(id)
+                                    .source(esJson);
+                        } else {
+                            // Discard
+                        }
+                    } else if(topic.equals("issue")) {
+                        if(type.equals("issue")) {
+                            request
+                                    .index("issue")
+                                    .id(id)
+                                    .source(esJson);
+                        } else if(type.equals("comment")) {
+                            request
+                                    .index("comment")
+                                    .id(id)
+                                    .source(esJson);
+                        } else {
+                            // Discard
+                        }
                     } else {
                         // Discard
                     }
+
                     return request;
 
                 }
 
                 @Override
-                public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
+                public void process(ObjectNode element, RuntimeContext ctx, RequestIndexer indexer) {
                     try {
                         indexer.add(createIndexRequest(element));
                     } catch (IOException e) {
@@ -166,14 +197,14 @@ public class GitHubElasticSink {
             };
 
             // Create sink builder
-            ElasticsearchSink.Builder<JsonNode> esSinkBuilder = new ElasticsearchSink.Builder<JsonNode>(httpHosts, indexLog);
+            ElasticsearchSink.Builder<ObjectNode> esSinkBuilder = new ElasticsearchSink.Builder<ObjectNode>(httpHosts, indexLog);
 
             // Set config options
             esSinkBuilder.setBulkFlushMaxActions(100);
             esSinkBuilder.setBulkFlushBackoffRetries(1);
 
             // Add elastic sink to input stream
-            jsonData.addSink(esSinkBuilder.build());
+            input.addSink(esSinkBuilder.build());
 
         } catch (Exception e) {
             System.out.println(e);
