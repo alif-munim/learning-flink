@@ -17,6 +17,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureH
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
+import org.apache.flink.streaming.connectors.elasticsearch7.RestClientFactory;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -81,13 +82,16 @@ public class GitHubElasticSink {
                 }
         );
 
+        // Print stream
+        githubStream.print();
+
         // Add elastic sink to source
         writeToElastic(githubStream);
 
         // Start ip data generator
-//        Utils.printHeader("Starting ip data generator...");
-//        Thread githubData = new Thread(new GitHubDataGenerator());
-//        githubData.start();
+        Utils.printHeader("Starting ip data generator...");
+        Thread githubData = new Thread(new GitHubDataGenerator());
+        githubData.start();
 
         // Execute pipeline
         env.execute("Kafka to Elasticsearch!");

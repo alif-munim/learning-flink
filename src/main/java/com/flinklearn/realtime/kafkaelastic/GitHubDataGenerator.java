@@ -37,10 +37,18 @@ public class GitHubDataGenerator implements Runnable {
             Producer<String, String> myProducer = new KafkaProducer<String, String>(properties);
 
             // Create lists to randomly select from
-            List<String> type = new ArrayList<>();
-            type.add("pullrequest");
-            type.add("filechange");
-            type.add("comment");
+            List<String> topic = new ArrayList<>();
+            topic.add("pullrequest");
+            topic.add("issue");
+
+            List<String> pullRequestType = new ArrayList<>();
+            pullRequestType.add("pullrequest");
+            pullRequestType.add("filechange");
+            pullRequestType.add("comment");
+
+            List<String> issueType = new ArrayList<>();
+            issueType.add("issue");
+            issueType.add("comment");
 
             List<String> user = new ArrayList<>();
             user.add("t-stark");
@@ -58,19 +66,36 @@ public class GitHubDataGenerator implements Runnable {
 
             for(int i = 0; i < 5000; i++) {
 
+                // Initialize type
+                String thisType;
+
+                // Choose topic
+                String thisTopic = topic.get(random.nextInt(topic.size()));
+
+                // Generate id
+                String thisId = String.valueOf(random.nextInt(50));
+
+                // Choose type
+                if (thisTopic.equals("pullrequest")) {
+                    thisType = pullRequestType.get(random.nextInt(pullRequestType.size()));
+                } else {
+                    thisType = issueType.get(random.nextInt(issueType.size()));
+                }
+
                 // Create random json object
-                String thisType = type.get(random.nextInt(type.size()));
+
                 String thisUser = user.get(random.nextInt(user.size()));
                 String thisBranch = branch.get(random.nextInt(branch.size()));
 
-                String jsonData = "{\"type\": \"" + thisType + "\", " +
+                String jsonData = "{\"id\": \"" + thisId + "\", " +
+                        "\"type\": \"" + thisType + "\", " +
                         "\"user\": \"" + thisUser + "\", " +
                         "\"branch\": \"" + thisBranch + "\"}";
 
                 // Create key and producer record
                 String currentTime = String.valueOf(System.currentTimeMillis());
                 ProducerRecord<String, String> myRecord = new ProducerRecord<String, String>(
-                    "github.data",
+                        thisTopic.equals("pullrequest") ? "pullrequest" : "issue",
                         currentTime,
                         jsonData
                 );
