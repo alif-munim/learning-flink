@@ -49,8 +49,11 @@ import java.util.concurrent.TimeUnit;
 
 public class GitHubElasticSink {
 
-    private static RestClient restClient = null;
-    private static ObjectMapper mapper = new ObjectMapper();
+    // Create client
+    private static RestHighLevelClient client = new RestHighLevelClient(
+            RestClient.builder(
+                    new HttpHost("localhost", 9200, "http"),
+                    new HttpHost("localhost", 9201, "http")));
 
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -75,24 +78,22 @@ public class GitHubElasticSink {
 //        githubData.start();
 
         // Check if element exists
-//        JsonNode checkElement = getById("1337", "pullrequest");
-//        System.out.println(checkElement.toString());
+        searchById("pullrequest", "1337");
 
-        // Create client
-        RestHighLevelClient client = new RestHighLevelClient(
-                RestClient.builder(
-                        new HttpHost("localhost", 9200, "http"),
-                        new HttpHost("localhost", 9201, "http")));
+        // execute program
+        //env.execute("Kafka to Elasticsearch!");
+    }
 
+    public static void searchById(String index, String id) throws IOException {
         // Create search request and source builder
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        sourceBuilder.query(QueryBuilders.termQuery("id", "1337"));
+        sourceBuilder.query(QueryBuilders.termQuery("id", id));
         sourceBuilder.from(0);
         sourceBuilder.size(5);
         sourceBuilder.timeout(new TimeValue(5, TimeUnit.SECONDS));
 
         SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices("pullrequest");
+        searchRequest.indices(index);
         searchRequest.source(sourceBuilder);
 
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
@@ -112,9 +113,6 @@ public class GitHubElasticSink {
         } else {
             System.out.println("There were no hits :(");
         }
-
-        // execute program
-        //env.execute("Kafka to Elasticsearch!");
     }
 
     public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env) {
@@ -143,26 +141,6 @@ public class GitHubElasticSink {
         esJson.put("branch", branch);
 
         return esJson;
-    }
-
-    private static JsonNode getById(String id, String index) throws IOException {
-
-        JsonNode body = null;
-        Request request = new Request("GET", "localhost:9200/pullrequest");
-        Response response = null;
-        try {
-            response = restClient.performRequest(request);
-            body = mapper.readTree(response.getEntity().getContent());
-        } catch (IOException e) {
-            if (e instanceof ResponseException) {
-                if (((ResponseException) e).getResponse().getStatusLine().getStatusCode() == 404) {
-                    return null;
-                } else {
-                    throw e;
-                }
-            }
-        }
-        return body;
     }
 
     public static void writeToElastic(DataStream<ObjectNode> input) {
