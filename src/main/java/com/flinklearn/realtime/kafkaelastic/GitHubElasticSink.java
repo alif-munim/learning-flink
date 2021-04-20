@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+
 
 /**
  * A flink pipeline which consumes json strings from a kafka source
@@ -49,12 +51,6 @@ import java.util.concurrent.TimeUnit;
 
 public class GitHubElasticSink {
 
-    // Create client
-    private static RestHighLevelClient client = new RestHighLevelClient(
-            RestClient.builder(
-                    new HttpHost("localhost", 9200, "http"),
-                    new HttpHost("localhost", 9201, "http")));
-
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -62,57 +58,18 @@ public class GitHubElasticSink {
         env.enableCheckpointing(500);
 
         // Begin reading from Kafka
-//        DataStream<ObjectNode> stream = readFromKafka(env);
-//        stream.timeWindowAll(
-//                Time.seconds(10),
-//                Time.seconds(5)
-//        );
-//        stream.print();
+        DataStream<ObjectNode> stream = readFromKafka(env);
 
         // Add elastic sink to source
-//        writeToElastic(stream);
+        writeToElastic(stream);
 
         // Start ip data generator
-//        Utils.printHeader("Starting ip data generator...");
-//        Thread githubData = new Thread(new GitHubDataGenerator());
-//        githubData.start();
+        Utils.printHeader("Starting ip data generator...");
+        Thread githubData = new Thread(new GitHubDataGenerator());
+        githubData.start();
 
-        // Check if element exists
-        searchById("pullrequest", "1337");
-
-        // execute program
-        //env.execute("Kafka to Elasticsearch!");
-    }
-
-    public static void searchById(String index, String id) throws IOException {
-        // Create search request and source builder
-        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
-        sourceBuilder.query(QueryBuilders.termQuery("id", id));
-        sourceBuilder.from(0);
-        sourceBuilder.size(5);
-        sourceBuilder.timeout(new TimeValue(5, TimeUnit.SECONDS));
-
-        SearchRequest searchRequest = new SearchRequest();
-        searchRequest.indices(index);
-        searchRequest.source(sourceBuilder);
-
-        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-
-        // Get hits from response
-        SearchHits hits = searchResponse.getHits();
-        SearchHit[] searchHits = hits.getHits();
-
-        // Check if there were hits
-        if(searchHits.length > 0) {
-            System.out.println("There were hits :)");
-            for (SearchHit hit : searchHits) {
-                // do something with the SearchHit
-                String sourceAsString = hit.getSourceAsString();
-                System.out.println(sourceAsString);
-            }
-        } else {
-            System.out.println("There were no hits :(");
-        }
+        // Execute pipeline
+        env.execute("Kafka to Elasticsearch!");
     }
 
     public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env) {
@@ -165,11 +122,12 @@ public class GitHubElasticSink {
             // Create indexing function
             ElasticsearchSinkFunction<JsonNode> indexLog = new ElasticsearchSinkFunction<JsonNode>() {
 
-                public IndexRequest createIndexRequest(JsonNode element) {
+                public IndexRequest createIndexRequest(JsonNode element) throws IOException {
 
                     // Pass json element to mapping function and get type
                     Map<String, String> esJson = jsonMapping(element);
                     String type = esJson.get("type");
+                    String id = esJson.get("id");
 
                     // Create an empty index request
                     IndexRequest request = Requests.indexRequest();
@@ -178,31 +136,32 @@ public class GitHubElasticSink {
                     if(type.equals("pullrequest")) {
                         request
                             .index("pullrequest")
+                            .id(id)
                             .source(esJson);
                     } else if(type.equals("filechange")) {
                         request
                             .index("filechange")
+                            .id(id)
                             .source(esJson);
                     } else if(type.equals("comment")) {
                         request
                             .index("comment")
+                            .id(id)
                             .source(esJson);
                     } else {
                         // Discard
                     }
-
                     return request;
 
                 }
 
-                public UpdateRequest createUpdateRequest(JsonNode element) {
-                    UpdateRequest update = new UpdateRequest();
-                    return update;
-                }
-
                 @Override
                 public void process(JsonNode element, RuntimeContext ctx, RequestIndexer indexer) {
-                    indexer.add(createIndexRequest(element));
+                    try {
+                        indexer.add(createIndexRequest(element));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             };
 
