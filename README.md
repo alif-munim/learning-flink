@@ -9,43 +9,41 @@ and time management operations, as well as Flink's built-in connectors for
 other platforms like Apache Kafka and Elasticsearch.
 
 ### Directory Structure
-```
-📦src
-┣ 📂main
-┃ ┣ 📂java
-┃ ┃ ┣ 📂com.flinklearn.realtime
-┃ ┃ ┃ ┣ 📂common
-┃ ┃ ┃ ┃ ┣ 📜MapCountPrinter.java
-┃ ┃ ┃ ┃ ┗ 📜Utils.java
-┃ ┃ ┃ ┣ 📂datasource
-┃ ┃ ┃ ┃ ┣ 📜FileStreamDataGenerator.java
-┃ ┃ ┃ ┃ ┗ 📜KafkaStreamDataGenerator.java
-┃ ┃ ┃ ┣ 📂datastreamapi
-┃ ┃ ┃ ┃ ┣ 📜AuditTrail.java
-┃ ┃ ┃ ┃ ┣ 📜BasicStreamingOperations.java
-┃ ┃ ┃ ┃ ┣ 📜KeyedStreamOperations.java
-┃ ┃ ┃ ┃ ┗ 📜StreamSplitAndCombine.java
-┃ ┃ ┃ ┣ 📂githubkafkaelastic
-┃ ┃ ┃ ┃ ┣ 📜GitHubDataGenerator.java
-┃ ┃ ┃ ┃ ┗ 📜GitHubElasticSink.java
-┃ ┃ ┃ ┣ 📂ipkafkaelastic
-┃ ┃ ┃ ┃ ┣ 📜IPDataGenerator.java
-┃ ┃ ┃ ┃ ┗ 📜IPElasticSink.java
-┃ ┃ ┃ ┣ 📂project
-┃ ┃ ┃ ┃ ┣ 📜BrowserEvent.java
-┃ ┃ ┃ ┃ ┣ 📜BrowserStreamDataGenerator.java
-┃ ┃ ┃ ┃ ┗ 📜SummaryDurationPipeline.java
-┃ ┃ ┃ ┣ 📂state
-┃ ┃ ┃ ┃ ┗ 📜StatefulOperations.java
-┃ ┃ ┃ ┣ 📂timeprocessing
-┃ ┃ ┃ ┃ ┗ 📜EventTimeOperations.java
-┃ ┃ ┃ ┗ 📂windowing
-┃ ┃ ┃ ┃ ┣ 📜WindowingOperations.java
-┃ ┃ ┃ ┃ ┗ 📜WindowJoins.java
-┃ ┃ ┣ 📂flinklearn
-┃ ┃ ┗ 📂learning
-┃ ┃ ┃ ┗ 📂realtime
-┃ ┗ 📂resources
-┗ 📂test
-┃ ┗ 📂java
-```
+📦src <br/>
+┣ 📂main <br/>
+┃ ┣ 📂java <br/>
+┃ ┃ ┣ 📂com.flinklearn.realtime <br/>
+┃ ┃ ┃ ┣ 📂[common]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜MapCountPrinter.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜Utils.java <br/>
+┃ ┃ ┃ ┣ 📂[datasource]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜FileStreamDataGenerator.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜KafkaStreamDataGenerator.java <br/>
+┃ ┃ ┃ ┣ 📂[datastreamapi]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜AuditTrail.java <br/>
+┃ ┃ ┃ ┃ ┣ 📜BasicStreamingOperations.java <br/>
+┃ ┃ ┃ ┃ ┣ 📜KeyedStreamOperations.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜StreamSplitAndCombine.java <br/>
+┃ ┃ ┃ ┣ 📂[githubkafkaelastic]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜GitHubDataGenerator.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜GitHubElasticSink.java <br/>
+┃ ┃ ┃ ┣ 📂[ipkafkaelastic]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜IPDataGenerator.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜IPElasticSink.java <br/>
+┃ ┃ ┃ ┣ 📂[project]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜BrowserEvent.java <br/>
+┃ ┃ ┃ ┃ ┣ 📜BrowserStreamDataGenerator.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜SummaryDurationPipeline.java <br/>
+┃ ┃ ┃ ┣ 📂[state]() <br/>
+┃ ┃ ┃ ┃ ┗ 📜StatefulOperations.java <br/>
+┃ ┃ ┃ ┣ 📂[timeprocessing <br/>
+┃ ┃ ┃ ┃ ┗ 📜EventTimeOperations.java <br/>
+┃ ┃ ┃ ┗ 📂[windowing]() <br/>
+┃ ┃ ┃ ┃ ┣ 📜WindowingOperations.java <br/>
+┃ ┃ ┃ ┃ ┗ 📜WindowJoins.java <br/>
+┃ ┃ ┣ 📂flinklearn <br/>
+┃ ┃ ┗ 📂learning <br/>
+┃ ┃ ┃ ┗ 📂realtime <br/>
+┃ ┗ 📂resources <br/>
+┗ 📂test <br/>
+┃ ┗ 📂java <br/>
