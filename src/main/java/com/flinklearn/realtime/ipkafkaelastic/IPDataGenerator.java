@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.kafkaelastic;
+package com.flinklearn.realtime.ipkafkaelastic;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;

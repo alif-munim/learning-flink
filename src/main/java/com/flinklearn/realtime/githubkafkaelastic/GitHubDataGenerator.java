@@ -1,13 +1,10 @@
-package com.flinklearn.realtime.kafkaelastic;
+package com.flinklearn.realtime.githubkafkaelastic;
 
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.types.Record;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
-import javax.xml.ws.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -39,12 +36,12 @@ public class GitHubDataGenerator implements Runnable {
             // Create lists to randomly select from
             List<String> topic = new ArrayList<>();
             topic.add("pullrequest");
-            topic.add("issue");
+            //topic.add("issue");
 
             List<String> pullRequestType = new ArrayList<>();
             pullRequestType.add("pullrequest");
-            pullRequestType.add("filechange");
-            pullRequestType.add("comment");
+            //pullRequestType.add("filechange");
+            //pullRequestType.add("comment");
 
             List<String> issueType = new ArrayList<>();
             issueType.add("issue");
@@ -73,7 +70,7 @@ public class GitHubDataGenerator implements Runnable {
                 String thisTopic = topic.get(random.nextInt(topic.size()));
 
                 // Generate id
-                String thisId = String.valueOf(random.nextInt(50));
+                String thisId = String.valueOf(random.nextInt(1000));
 
                 // Choose type
                 if (thisTopic.equals("pullrequest")) {

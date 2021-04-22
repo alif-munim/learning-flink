@@ -1,4 +1,4 @@
-package com.flinklearn.realtime.kafkaelastic;
+package com.flinklearn.realtime.ipkafkaelastic;
 
 import com.flinklearn.realtime.common.Utils;
 import org.apache.flink.api.common.functions.RuntimeContext;
