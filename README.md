@@ -8,17 +8,36 @@ processing through the datastream API, windowing, time processing, mapping,
 and time management operations, as well as Flink's built-in connectors for 
 other platforms like Apache Kafka and Elasticsearch.
 
-### Directory Structure
+### directory tree
 
-📦src/main/java <br/>
-┣ 📂com.flinklearn.realtime <br/>
+📂 src/main/java <br/>
+┣ 📦com.flinklearn.realtime <br/>
 ┃ ┣ 📂 [**common**]() <br/>
 ┃ ┣ 📂 [**datasource**]() <br/>
 ┃ ┣ 📂 [**datastreamapi**]() <br/>
-┃ ┣ 📂 [**githubkafkaelastic**]() <br/>
-┃ ┣ 📂 [**ipkafkaelastic**]() <br/>
+┃ ┣ 📂 [**githubkafkaelastic**](github-kafka-elastic) <br/>
+┃ ┣ 📂 [**ipkafkaelastic**](ip-kafka-elastic) <br/>
 ┃ ┣ 📂 [**project**]() <br/>
 ┃ ┣ 📂 [**state**]() <br/>
 ┃ ┣ 📂 [**timeprocessing**]() <br/>
 ┃ ┗ 📂 [**windowing**]() <br/>
+
+
+### ip kafka elastic
+```
+📂 src/main/java
+┣ 📦 com.flinklearn.realtime
+┃ ┣ 📂 ipkafkaelastic
+┃ ┃ ┣ 📜 IPDataGenerator.java <br/>
+┃ ┃ ┗ 📜 IPElasticSink.java <br/>
+```
+
+### github kafka elastic
+```
+📂 src/main/java
+┣ 📦 com.flinklearn.realtime
+┃ ┣ 📂 githubkafkaelastic
+┃ ┃ ┣ 📜 GitHubDataGenerator.java
+┃ ┃ ┗ 📜 GitHubElasticSink.java
+```
 
