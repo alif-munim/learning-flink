@@ -12,31 +12,13 @@ other platforms like Apache Kafka and Elasticsearch.
 
 📦src/main/java <br/>
 ┣ 📂com.flinklearn.realtime <br/>
-┃ ┣ 📂[**common**]() <br/>
-┃ ┃ ┣ 📜 MapCountPrinter.java <br/>
-┃ ┃ ┗ 📜 Utils.java <br/>
-┃ ┣ 📂[**datasource**]() <br/>
-┃ ┃ ┣ 📜 FileStreamDataGenerator.java <br/>
-┃ ┃ ┗ 📜 KafkaStreamDataGenerator.java <br/>
-┃ ┣ 📂[**datastreamapi**]() <br/>
-┃ ┃ ┣ 📜 AuditTrail.java <br/>
-┃ ┃ ┣ 📜 BasicStreamingOperations.java <br/>
-┃ ┃ ┣ 📜 KeyedStreamOperations.java <br/>
-┃ ┃ ┗ 📜 StreamSplitAndCombine.java <br/>
-┃ ┣ 📂[**githubkafkaelastic**]() <br/>
-┃ ┃ ┣ 📜 GitHubDataGenerator.java <br/>
-┃ ┃ ┗ 📜 GitHubElasticSink.java <br/>
-┃ ┣ 📂[**ipkafkaelastic**]() <br/>
-┃ ┃ ┣ 📜 IPDataGenerator.java <br/>
-┃ ┃ ┗ 📜 IPElasticSink.java <br/>
-┃ ┣ 📂[**project**]() <br/>
-┃ ┃ ┣ 📜 BrowserEvent.java <br/>
-┃ ┃ ┣ 📜 BrowserStreamDataGenerator.java <br/>
-┃ ┃ ┗ 📜 SummaryDurationPipeline.java <br/>
-┃ ┣ 📂[**state**]() <br/>
-┃ ┃ ┗ 📜 StatefulOperations.java <br/>
-┃ ┣ 📂[**timeprocessing**]() <br/>
-┃ ┃ ┗ 📜 EventTimeOperations.java <br/>
-┃ ┗ 📂[**windowing**]() <br/>
-┃ ┃ ┣ 📜 WindowingOperations.java <br/>
-┃ ┃ ┗ 📜 WindowJoins.java <br/>
+┃ ┣ 📂 [**common**]() <br/>
+┃ ┣ 📂 [**datasource**]() <br/>
+┃ ┣ 📂 [**datastreamapi**]() <br/>
+┃ ┣ 📂 [**githubkafkaelastic**]() <br/>
+┃ ┣ 📂 [**ipkafkaelastic**]() <br/>
+┃ ┣ 📂 [**project**]() <br/>
+┃ ┣ 📂 [**state**]() <br/>
+┃ ┣ 📂 [**timeprocessing**]() <br/>
+┃ ┗ 📂 [**windowing**]() <br/>
+
