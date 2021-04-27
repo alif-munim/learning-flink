@@ -1,7 +1,7 @@
 # learning-flink
-Apache Flink is one of the fastest growing real-time stream processing 
+Apache Flink is one of the fastest growing stream processing 
 applications used today, used by companies like 
-Amazon and Lyft. 
+Amazon and Lyft for high throughput real-time data processing. 
 
 This repository is a playground for me to learn more about flink and stream 
 processing through the datastream API, windowing, time processing, mapping, 
@@ -28,8 +28,8 @@ other platforms like Apache Kafka and Elasticsearch.
 📂 src/main/java
 ┣ 📦 com.flinklearn.realtime
 ┃ ┣ 📂 ipkafkaelastic
-┃ ┃ ┣ 📜 IPDataGenerator.java <br/>
-┃ ┃ ┗ 📜 IPElasticSink.java <br/>
+┃ ┃ ┣ 📜 IPDataGenerator.java
+┃ ┃ ┗ 📜 IPElasticSink.java
 ```
 
 ### github kafka elastic
