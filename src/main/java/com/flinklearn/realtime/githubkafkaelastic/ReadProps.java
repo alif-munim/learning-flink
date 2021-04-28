@@ -35,11 +35,7 @@ public class ReadProps {
             ex.printStackTrace();
         }
 
-        // get the property value and print it out
-        System.out.println(elasticMap.get("elastic.host"));
-        System.out.println(elasticMap.get("elastic.port"));
-        System.out.println(elasticMap.get("elastic.user"));
-        System.out.println(elasticMap.get("elastic.password"));
+        // return the hashmap
         return elasticMap;
 
     }

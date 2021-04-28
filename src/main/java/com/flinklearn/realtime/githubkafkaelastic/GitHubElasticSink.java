@@ -14,6 +14,11 @@ import org.apache.flink.streaming.connectors.elasticsearch7.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserializationSchema;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.*;
 
@@ -37,8 +42,8 @@ public class GitHubElasticSink {
         env.enableCheckpointing(500);
 
         // Begin reading from Kafka
-        DataStream<ObjectNode> pullRequestStream = readFromKafka(env, "pullrequest");
-        DataStream<ObjectNode> issueStream = readFromKafka(env, "issue");
+        DataStream<ObjectNode> pullRequestStream = readFromKafka(env, "pr-test");
+        DataStream<ObjectNode> issueStream = readFromKafka(env, "issue-test");
 
         // Connect streams
         ConnectedStreams<ObjectNode, ObjectNode> githubConnected = pullRequestStream.connect(issueStream);
@@ -61,13 +66,17 @@ public class GitHubElasticSink {
         // Print stream
         githubStream.print();
 
-        // Add elastic sink to source
-        writeToElastic(githubStream);
+        // Get elastic config
+        ReadProps readProps = new ReadProps();
+        HashMap<String, String> elasticMap = readProps.load();
 
-        // Start ip data generator
-        Utils.printHeader("Starting ip data generator...");
-        Thread githubData = new Thread(new GitHubDataGenerator());
-        githubData.start();
+        // Add elastic sink to source
+        writeToElastic(githubStream, elasticMap);
+
+        // Start github data generator
+//        Utils.printHeader("Starting github API data generator...");
+//        Thread githubData = new Thread(new GitHubDataGenerator());
+//        githubData.start();
 
         // Execute pipeline
         env.execute("Kafka to Elasticsearch!");
@@ -101,14 +110,14 @@ public class GitHubElasticSink {
         return esJson;
     }
 
-    public static void writeToElastic(DataStream<ObjectNode> input) {
+    public static void writeToElastic(DataStream<ObjectNode> input, HashMap<String, String> config) {
 
         try {
 
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
-            httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
-            httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
+//            httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
+            httpHosts.add(new HttpHost(String.valueOf(config.get("elastic.host")), Integer.valueOf(config.get("elastic.port")), "http"));
 
             // Create indexing function
             ElasticsearchSinkFunction<ObjectNode> indexLog = new ElasticsearchSinkFunction<ObjectNode>() {
@@ -128,38 +137,49 @@ public class GitHubElasticSink {
                     if(topic.equals("pullrequest")) {
                         if(type.equals("pullrequest")) {
                             request
-                                    .index("pullrequest")
+                                    .index("pr-test")
                                     .id(id)
                                     .source(esJson);
+                            System.out.println("Creating request: " + esJson.toString());
                         } else if(type.equals("filechange")) {
                             request
                                     .index("filechange")
                                     .id(id)
                                     .source(esJson);
+                            System.out.println("Creating request: " + esJson.toString());
                         } else if(type.equals("comment")) {
                             request
                                     .index("comment")
                                     .id(id)
                                     .source(esJson);
+                            System.out.println("Creating request: " + esJson.toString());
                         } else {
                             // Discard
+                            System.out.println("Bad data, discarding: " + esJson.toString());
+                            request.id("discard");
                         }
                     } else if(topic.equals("issue")) {
                         if(type.equals("issue")) {
                             request
-                                    .index("issue")
+                                    .index("issue-test")
                                     .id(id)
                                     .source(esJson);
+                            System.out.println("Creating request: " + esJson.toString());
                         } else if(type.equals("comment")) {
                             request
                                     .index("comment")
                                     .id(id)
                                     .source(esJson);
+                            System.out.println("Creating request: " + esJson.toString());
                         } else {
                             // Discard
+                            System.out.println("Bad data, discarding: " + esJson.toString());
+                            request.id("discard");
                         }
                     } else {
                         // Discard
+                        System.out.println("Bad data, discarding: " + esJson.toString());
+                        request.id("discard");
                     }
 
                     return request;
@@ -169,7 +189,13 @@ public class GitHubElasticSink {
                 @Override
                 public void process(ObjectNode element, RuntimeContext ctx, RequestIndexer indexer) {
                     try {
-                        indexer.add(createIndexRequest(element));
+                        IndexRequest req = createIndexRequest(element);
+                        if (req.id() != "discard") {
+                            System.out.println("Request id was " + req.id());
+                            indexer.add(req);
+                        } else {
+                            System.out.println("Request id was `discard`");
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -182,6 +208,26 @@ public class GitHubElasticSink {
             // Set config options
             esSinkBuilder.setBulkFlushMaxActions(50);
             esSinkBuilder.setBulkFlushBackoffRetries(1);
+
+            // provide a RestClientFactory for custom configuration on the internally created REST client
+//            esSinkBuilder.setRestClientFactory(
+//                    restClientBuilder -> {
+//                        restClientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+//                            @Override
+//                            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+//
+//                                // elasticsearch username and password
+//                                CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+//                                credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(
+//                                        String.valueOf(config.get("user")),
+//                                        String.valueOf(config.get("password"))
+//                                ));
+//
+//                                return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+//                            }
+//                        });
+//                    }
+//            );
 
             // Add elastic sink to input stream
             input.addSink(esSinkBuilder.build());
