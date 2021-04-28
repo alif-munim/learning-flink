@@ -17,12 +17,18 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.*;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -116,8 +122,11 @@ public class GitHubElasticSink {
 
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
-//            httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
-            httpHosts.add(new HttpHost(String.valueOf(config.get("elastic.host")), Integer.valueOf(config.get("elastic.port")), "http"));
+            httpHosts.add(new HttpHost(
+                    String.valueOf(config.get("elastic.host")),
+                    Integer.valueOf(config.get("elastic.port")),
+                    "https"
+            ));
 
             // Create indexing function
             ElasticsearchSinkFunction<ObjectNode> indexLog = new ElasticsearchSinkFunction<ObjectNode>() {
@@ -191,10 +200,7 @@ public class GitHubElasticSink {
                     try {
                         IndexRequest req = createIndexRequest(element);
                         if (req.id() != "discard") {
-                            System.out.println("Request id was " + req.id());
                             indexer.add(req);
-                        } else {
-                            System.out.println("Request id was `discard`");
                         }
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -210,27 +216,48 @@ public class GitHubElasticSink {
             esSinkBuilder.setBulkFlushBackoffRetries(1);
 
             // provide a RestClientFactory for custom configuration on the internally created REST client
-//            esSinkBuilder.setRestClientFactory(
-//                    restClientBuilder -> {
-//                        restClientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
-//                            @Override
-//                            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-//
-//                                // elasticsearch username and password
-//                                CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-//                                credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(
-//                                        String.valueOf(config.get("user")),
-//                                        String.valueOf(config.get("password"))
-//                                ));
-//
-//                                return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-//                            }
-//                        });
-//                    }
-//            );
+            esSinkBuilder.setRestClientFactory(
+                    restClientBuilder -> {
+                        restClientBuilder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+                            @Override
+                            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+
+                                String elasticUser = String.valueOf(config.get("elastic.user"));
+                                String elasticPassword = String.valueOf(config.get("elastic.password"));
+
+                                if (elasticUser != null && elasticPassword != null) {
+                                    // elasticsearch username and password
+                                    CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                                    credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(
+                                            elasticUser,
+                                            elasticPassword
+                                    ));
+                                    httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+                                }
+
+                                try {
+                                    // Trust self-signed certificates
+                                    SSLContextBuilder builder = new SSLContextBuilder();
+                                    builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
+                                    SSLContext sslContext = builder.build();
+                                    httpClientBuilder.setSSLContext(sslContext);
+                                } catch (NoSuchAlgorithmException e) {
+                                    e.printStackTrace();
+                                } catch (KeyStoreException e) {
+                                    e.printStackTrace();
+                                } catch (KeyManagementException e) {
+                                    e.printStackTrace();
+                                }
+
+                                return httpClientBuilder;
+                            }
+                        });
+                    }
+            );
 
             // Add elastic sink to input stream
             input.addSink(esSinkBuilder.build());
+            System.out.println("Built elasticsearch sink and added to stream");
 
         } catch (Exception e) {
             System.out.println(e);
