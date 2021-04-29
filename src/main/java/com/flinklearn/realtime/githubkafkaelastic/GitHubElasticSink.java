@@ -74,10 +74,10 @@ public class GitHubElasticSink {
 
         // Get elastic config
         ReadProps readProps = new ReadProps();
-        HashMap<String, String> elasticMap = readProps.load();
+        Properties elasticProp = readProps.load();
 
         // Add elastic sink to source
-        writeToElastic(githubStream, elasticMap);
+        writeToElastic(githubStream, elasticProp);
 
         // Start github data generator
 //        Utils.printHeader("Starting github API data generator...");
@@ -116,15 +116,15 @@ public class GitHubElasticSink {
         return esJson;
     }
 
-    public static void writeToElastic(DataStream<ObjectNode> input, HashMap<String, String> config) {
+    public static void writeToElastic(DataStream<ObjectNode> input, Properties config) {
 
         try {
 
             // Add elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
             httpHosts.add(new HttpHost(
-                    String.valueOf(config.get("elastic.host")),
-                    Integer.valueOf(config.get("elastic.port")),
+                    String.valueOf(config.getProperty("elastic.host")),
+                    Integer.valueOf(config.getProperty("elastic.port")),
                     "https"
             ));
 
@@ -222,8 +222,8 @@ public class GitHubElasticSink {
                             @Override
                             public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
 
-                                String elasticUser = String.valueOf(config.get("elastic.user"));
-                                String elasticPassword = String.valueOf(config.get("elastic.password"));
+                                String elasticUser = String.valueOf(config.getProperty("elastic.user"));
+                                String elasticPassword = String.valueOf(config.getProperty("elastic.password"));
 
                                 if (elasticUser != null && elasticPassword != null) {
                                     // elasticsearch username and password

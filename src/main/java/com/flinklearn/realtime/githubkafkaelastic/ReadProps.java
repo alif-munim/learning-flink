@@ -14,29 +14,21 @@ public class ReadProps {
         rp.load();
     }
 
-    public static HashMap<String, String> load() {
+    public static Properties load() {
 
-        HashMap<String, String> elasticMap = new HashMap<>();
+        Properties prop = new Properties();
 
         try (InputStream input = new FileInputStream("config.properties")) {
 
-            Properties prop = new Properties();
-
             // load a properties file
             prop.load(input);
-
-            // add properties to a hashmap
-            elasticMap.put("elastic.host", prop.getProperty("elastic.host"));
-            elasticMap.put("elastic.port", prop.getProperty("elastic.port"));
-            elasticMap.put("elastic.user", prop.getProperty("elastic.user"));
-            elasticMap.put("elastic.password", prop.getProperty("elastic.password"));
 
         } catch (IOException ex) {
             ex.printStackTrace();
         }
 
         // return the hashmap
-        return elasticMap;
+        return prop;
 
     }
 
