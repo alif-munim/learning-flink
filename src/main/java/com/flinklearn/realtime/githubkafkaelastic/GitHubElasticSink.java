@@ -47,9 +47,13 @@ public class GitHubElasticSink {
         // Enable checkpointing every 500 messages
         env.enableCheckpointing(500);
 
+        // Get config
+        ReadProps readProps = new ReadProps();
+        Properties configProps = readProps.load();
+
         // Begin reading from Kafka
-        DataStream<ObjectNode> pullRequestStream = readFromKafka(env, "pr-test");
-        DataStream<ObjectNode> issueStream = readFromKafka(env, "issue-test");
+        DataStream<ObjectNode> pullRequestStream = readFromKafka(env, configProps,"pr-test");
+        DataStream<ObjectNode> issueStream = readFromKafka(env, configProps, "issue-test");
 
         // Connect streams
         ConnectedStreams<ObjectNode, ObjectNode> githubConnected = pullRequestStream.connect(issueStream);
@@ -72,12 +76,8 @@ public class GitHubElasticSink {
         // Print stream
         githubStream.print();
 
-        // Get elastic config
-        ReadProps readProps = new ReadProps();
-        Properties elasticProp = readProps.load();
-
         // Add elastic sink to source
-        writeToElastic(githubStream, elasticProp);
+        writeToElastic(githubStream, configProps);
 
         // Start github data generator
 //        Utils.printHeader("Starting github API data generator...");
@@ -88,12 +88,21 @@ public class GitHubElasticSink {
         env.execute("Kafka to Elasticsearch!");
     }
 
-    public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env, String topic) {
+    public static DataStream<ObjectNode> readFromKafka(StreamExecutionEnvironment env, Properties config, String topic) {
+
+        // Extract kafka config
+        String kafkaURL = String.valueOf(config.getProperty("kafka.host")) + ":" + String.valueOf(config.getProperty("kafka.port"));
+        String securityProtocol = String.valueOf(config.getProperty("kafka.security.protocol"));
+        String sslTruststorePassword = String.valueOf(config.getProperty("kafka.ssl.truststore.password"));
+        String sslTruststoreLocation = String.valueOf(config.getProperty("kafka.ssl.truststore.location"));
 
         // Set properties for Kafka
         Properties properties = new Properties();
-        properties.setProperty("bootstrap.servers", "localhost:9092");
-        properties.setProperty("group.id", "test");
+        properties.setProperty("bootstrap.servers", kafkaURL);
+        properties.setProperty("group.id", "consumer.group.1");
+        properties.setProperty("security.protocol", securityProtocol);
+        properties.setProperty("ssl.truststore.password", sslTruststorePassword);
+        properties.setProperty("ssl.truststore.location", sslTruststoreLocation);
 
         // Add kafka as streaming source
         DataStream<ObjectNode> stream = env.addSource(
