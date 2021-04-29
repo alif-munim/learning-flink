@@ -35,8 +35,8 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 
 /**
- * A flink pipeline which consumes json strings from a kafka source
- * parses them, applies transformations, and posts them to an elastic sink
+ * A flink pipeline which consumes json strings from a secure kafka source
+ * parses them, applies transformations, and posts them to a secure elastic sink
  */
 
 public class GitHubElasticSink {
@@ -96,7 +96,7 @@ public class GitHubElasticSink {
         String sslTruststorePassword = String.valueOf(config.getProperty("kafka.ssl.truststore.password"));
         String sslTruststoreLocation = String.valueOf(config.getProperty("kafka.ssl.truststore.location"));
 
-        // Set properties for Kafka
+        // Set properties for secure Kafka
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", kafkaURL);
         properties.setProperty("group.id", "consumer.group.1");
@@ -129,7 +129,7 @@ public class GitHubElasticSink {
 
         try {
 
-            // Add elasticsearch hosts on startup
+            // Add secure elasticsearch hosts on startup
             List<HttpHost> httpHosts = new ArrayList<>();
             httpHosts.add(new HttpHost(
                     String.valueOf(config.getProperty("elastic.host")),
@@ -231,9 +231,11 @@ public class GitHubElasticSink {
                             @Override
                             public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
 
+                                // Get the elastic username and password from config
                                 String elasticUser = String.valueOf(config.getProperty("elastic.user"));
                                 String elasticPassword = String.valueOf(config.getProperty("elastic.password"));
 
+                                // Set credentials
                                 if (elasticUser != null && elasticPassword != null) {
                                     // elasticsearch username and password
                                     CredentialsProvider credentialsProvider = new BasicCredentialsProvider();

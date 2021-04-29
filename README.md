@@ -99,17 +99,19 @@ Elasticsearch 7 from [Kiera Zhou's implementation](https://github.com/keiraqz/Ka
 address_ and _connection name_. These strings are produced to the **ip.info** kafka topic.<br>
 [**IPElasticSink.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/ipkafkaelastic/IPElasticSink.java): Consumes string array data from the **ip.info** kafka topic, extracts the 
 data into a HashMap, and bulk posts it to the **ip-test** elastic index.
-<br><br>
+<br><br><br>
 
 ## github kafka elastic
-A flink pipeline that consumes data from kafka, performs some transformations, 
+A flink pipeline that consumes data from a secure kafka, performs some transformations, 
 and routes the data to the appropriate index in a secure elasticsearch cluster.
 ```
 📂 src/main/java
 ┣ 📦 com.flinklearn.realtime
 ┃ ┣ 📂 githubkafkaelastic
 ┃ ┃ ┣ 📜 GitHubDataGenerator.java
-┃ ┃ ┗ 📜 GitHubElasticSink.java
+┃ ┃ ┣ 📜 GitHubDataGenerator.java
+┃ ┃ ┣ 📜 ReadProps.java
+┃ ┃ ┗ 📜 SecureKafka.java
 ```
 [**GitHubDataGenerator.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/githubkafkaelastic/GitHubDataGenerator.java): Randomly generates 5000 JSON string records containing
 the _id_, _type_, _user_, and _branch_ of a given **pull request** or **issue**. These records are then
