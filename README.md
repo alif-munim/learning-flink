@@ -12,15 +12,15 @@ other platforms like Apache Kafka and Elasticsearch.
 ### directory tree
 📂 src/main/java <br/>
 ┣ 📦com.flinklearn.realtime <br/>
-┃ ┣ 📂 [**common**]() <br/>
-┃ ┣ 📂 [**datasource**]() <br/>
-┃ ┣ 📂 [**datastreamapi**]() <br/>
+┃ ┣ 📂 common <br/>
+┃ ┣ 📂 datasource <br/>
+┃ ┣ 📂 datastreamapi <br/>
 ┃ ┣ 📂 [**githubkafkaelastic**](#github-kafka-elastic) <br/>
 ┃ ┣ 📂 [**ipkafkaelastic**](#ip-kafka-elastic) <br/>
-┃ ┣ 📂 [**project**]() <br/>
-┃ ┣ 📂 [**state**]() <br/>
-┃ ┣ 📂 [**timeprocessing**]() <br/>
-┃ ┗ 📂 [**windowing**]() <br/>
+┃ ┣ 📂 project <br/>
+┃ ┣ 📂 state <br/>
+┃ ┣ 📂 timeprocessing <br/>
+┃ ┗ 📂 windowing <br/>
 <br><br>
 
 ## prerequisites
