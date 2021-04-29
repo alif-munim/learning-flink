@@ -22,7 +22,7 @@ other platforms like Apache Kafka and Elasticsearch.
 ┃ ┣ 📂 [**timeprocessing**]() <br/>
 ┃ ┗ 📂 [**windowing**]() <br/>
 
-###prerequisites
+### prerequisites
 The instructions below are written for Windows. However, the steps should be relatively similar on Mac OS as well. 
 The following prerequisites are also the same.
 * Kafka installed. [Download here](https://kafka.apache.org/downloads.html).
@@ -31,7 +31,7 @@ The following prerequisites are also the same.
 * [Recommended] Postman installed. [Download here](https://www.postman.com/downloads/).
 <br><br>
   
-###quickstart
+### quickstart
 **project setup:**
 Clone this github repository, and import it into the Java IDE of your choice. [IntelliJ Idea](https://www.jetbrains.com/idea/download/)
 is recommended.
@@ -69,7 +69,7 @@ elastic.password=[pass]
 ```
 <br><br>
 
-###ip kafka elastic
+### ip kafka elastic
 A basic example of Apache Flink's built-in Kafka and Elasticsearch connectors in use. Adapted for
 Elasticsearch 7 from [Kiera Zhou's implementation](https://github.com/keiraqz/KafkaFlinkElastic).
 ```
@@ -85,7 +85,7 @@ address_ and _connection name_. These strings are produced to the **ip.info** ka
 data into a HashMap, and bulk posts it to the **ip-test** elastic index.
 <br><br>
 
-###github kafka elastic
+### github kafka elastic
 A flink pipeline that consumes data from kafka, performs some transformations, 
 and routes the data to the appropriate index in a secure elasticsearch cluster.
 ```
