@@ -21,7 +21,7 @@ other platforms like Apache Kafka and Elasticsearch.
 ┃ ┣ 📂 [**state**]() <br/>
 ┃ ┣ 📂 [**timeprocessing**]() <br/>
 ┃ ┗ 📂 [**windowing**]() <br/>
-
+<br><br>
 ### prerequisites
 The instructions below are written for Windows. However, the steps should be relatively similar on Mac OS as well. 
 The following prerequisites are also the same.
@@ -32,13 +32,13 @@ The following prerequisites are also the same.
 <br><br>
   
 ### quickstart
-**project setup:**
+**project setup:** <br>
 Clone this github repository, and import it into the Java IDE of your choice. [IntelliJ Idea](https://www.jetbrains.com/idea/download/)
 is recommended.
 ```
 > git clone https://github.com/alif-munim/learning-flink.git
 ```
-**kafka steps**:
+**kafka steps**: <br>
 start the kafka server and zookeeper, and then create the topics required for this project. 
 ```
 > zookeeper-server-start.bat ../../config/zookeeper.properties
@@ -54,12 +54,14 @@ start a console producer to produce messages to the topic of your choice.
 ```
 > kafka-console-producer.bat --topic [ip.info|pullrequest|issue] --bootstrap-server localhost:9092
 ```
-**elasticsearch steps**: start a local elasticsearch. If you are connecting to an existing secure 
+**elasticsearch steps**: <br>
+start a local elasticsearch. If you are connecting to an existing secure 
 elasticsearch instance, you can skip this step.
 ```
 > elasticsearch.bat
 ```
-**config steps**: create a file called `config.properties` in the project root directory. Specify the
+**config steps**: <br>
+create a file called `config.properties` in the project root directory. Specify the
 properties below. If your elastic instance is not secure, you can skip _elastic.user_ and _elastic.password_.
 ```
 elastic.host=[host]
@@ -79,9 +81,9 @@ Elasticsearch 7 from [Kiera Zhou's implementation](https://github.com/keiraqz/Ka
 ┃ ┃ ┣ 📜 IPDataGenerator.java
 ┃ ┃ ┗ 📜 IPElasticSink.java
 ```
-[**IPDataGenerator.java**](): Randomly generates 100 comma-delimited string arrays containing an _ip
+[**IPDataGenerator.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/ipkafkaelastic/IPDataGenerator.java): Randomly generates 100 comma-delimited string arrays containing an _ip
 address_ and _connection name_. These strings are produced to the **ip.info** kafka topic.<br>
-[**IPElasticSink.java**](): Consumes string array data from the **ip.info** kafka topic, extracts the 
+[**IPElasticSink.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/ipkafkaelastic/IPElasticSink.java): Consumes string array data from the **ip.info** kafka topic, extracts the 
 data into a HashMap, and bulk posts it to the **ip-test** elastic index.
 <br><br>
 
@@ -95,11 +97,13 @@ and routes the data to the appropriate index in a secure elasticsearch cluster.
 ┃ ┃ ┣ 📜 GitHubDataGenerator.java
 ┃ ┃ ┗ 📜 GitHubElasticSink.java
 ```
-[**GitHubDataGenerator.java**](): Randomly generates 5000 JSON string records containing
+[**GitHubDataGenerator.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/githubkafkaelastic/GitHubDataGenerator.java): Randomly generates 5000 JSON string records containing
 the _id_, _type_, _user_, and _branch_ of a given **pull request** or **issue**. These records are then
 produced to either the **pullrequest** or **issue** topic.<br>
-[**GithubElasticSink.java**](): Consumes messages from the **pullrequest** and **issue** topics and merges the
+[**GithubElasticSink.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/githubkafkaelastic/GitHubElasticSink.java): Consumes messages from the **pullrequest** and **issue** topics and merges the
 two data streams. A secure elasticsearch sink is configured based on properties specified in a 
 `config.properties` file, and added to the merged data stream. The data routing method is specified in 
 an elasticsearch sink function. A `.setBulkFlushMaxActions()` property is also set so that the messages
-are posted in bulk to elastic, for greater efficiency.
+are posted in bulk to elastic, for greater efficiency. <br>
+[**ReadProps.java**](https://github.com/alif-munim/learning-flink/blob/master/src/main/java/com/flinklearn/realtime/githubkafkaelastic/ReadProps.java)
+Read configuration properties from the `config.properties` file.
